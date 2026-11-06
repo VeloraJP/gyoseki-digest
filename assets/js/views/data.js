@@ -3,7 +3,8 @@ import {
   REGISTRATION_STAGES,
   TAX_ACCOUNTING_BASIS_LABELS
 } from "../config/constants.js";
-import { esc } from "../components/dom.js";
+import { backButtonHtml, esc } from "../components/dom.js";
+import { icon, pageIcon } from "../components/icons.js";
 import { ROUTES, buildHash } from "../navigation/router.js";
 import {
   DataImportError,
@@ -19,8 +20,9 @@ import {
 export function renderData({ link }) {
   return `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.START)}">会社選択</a></p>
-      <h1>データ管理</h1>
+      <h1>${pageIcon("database")}データ管理</h1>
     </div>
     <div class="note-box">
       データはこの端末の中にだけ保存されています。サーバーへ送信されることはありません。<br>
@@ -28,7 +30,7 @@ export function renderData({ link }) {
     </div>
 
     <div class="card">
-      <h2 style="margin-top:0">バックアップ（書き出し）</h2>
+      <h2 style="margin-top:0">${icon("download")} バックアップ（書き出し）</h2>
       <p>会社・設定・年次登録・月次登録・貸借対照表の任意登録を、1つのJSONファイルに書き出します。</p>
       <div class="btn-row">
         <button type="button" class="btn btn--primary" id="export-btn">JSONを書き出す</button>
@@ -37,7 +39,7 @@ export function renderData({ link }) {
     </div>
 
     <div class="card">
-      <h2 style="margin-top:0">復元（読み込み）</h2>
+      <h2 style="margin-top:0">${icon("upload")} 復元（読み込み）</h2>
       <p>業績ダイジェストで書き出したJSONファイルを読み込みます。読み込むと、<strong>現在のデータはファイルの内容に置き換わります</strong>（部分的に合体させることはできません）。ほかのツールのJSONは読み込めません。</p>
       <div class="field">
         <label for="import-file">JSONファイルを選ぶ</label>
@@ -47,7 +49,7 @@ export function renderData({ link }) {
     </div>
 
     <div class="card">
-      <h2 style="margin-top:0">ほかのツールからの移行（business-tool2-2）</h2>
+      <h2 style="margin-top:0">${icon("swap")} ほかのツールからの移行（business-tool2-2）</h2>
       <p>business-tool2-2で書き出したJSONから、年次登録（決算の数字）を読み取り、<strong>新しい会社として追加</strong>します。現在のデータは置き換わりません。変換の内容を確認してから取り込みます。本ツールのバックアップJSONは、上の「復元（読み込み）」で読み込んでください。</p>
       <div class="field">
         <label for="migration-file">business-tool2-2のJSONファイルを選ぶ</label>

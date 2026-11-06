@@ -10,7 +10,8 @@ import { createMonthlyRecord } from "../data/schema.js";
 import { removeMonthlyRecord } from "../core/manage.js";
 import { findMonthlyRecord, fiscalPeriodKey, getMonthlyFigures } from "../core/calc.js";
 import { validateMonthlyRegistration } from "../core/validate.js";
-import { esc, formatYen, formatYearMonth, fromYen, parseAmountInput, toYen } from "../components/dom.js";
+import { backButtonHtml, esc, formatYen, formatYearMonth, fromYen, parseAmountInput, toYen } from "../components/dom.js";
+import { pageIcon } from "../components/icons.js";
 import { ROUTES, buildHash } from "../navigation/router.js";
 
 export function renderMonthly({ company, yearMonth, record, link }) {
@@ -26,8 +27,9 @@ export function renderMonthly({ company, yearMonth, record, link }) {
 
   return `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
-      <h1>月次登録${record ? "（登録済みの月）" : ""}</h1>
+      <h1>${pageIcon("clock")}月次登録${record ? "（登録済みの月）" : ""}</h1>
       <p class="note">月の締めが終わったあと、月1回の登録を基本とします。登録は1か月分ずつ行います。金額の入力単位は「${unitLabel}」です。</p>
     </div>
     <form id="monthly-form" class="card" novalidate>
@@ -103,7 +105,11 @@ export function mountMonthly(el, { store, company, navigate }) {
   const deleteMonthlyBtn = el.querySelector("#delete-monthly-btn");
   if (deleteMonthlyBtn) {
     const confirmBox = el.querySelector("#delete-monthly-confirm");
-    deleteMonthlyBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    deleteMonthlyBtn.addEventListener("click", () => {
+      confirmBox.hidden = false;
+      // 確認ボックスはページ最下部に開くため、見える位置までスクロールして知らせる。
+      confirmBox.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    });
     el.querySelector("#delete-monthly-confirm-btn")?.addEventListener("click", () => {
       const ym = ymInput.value;
       const snapshot = store.getCompany(company.id);

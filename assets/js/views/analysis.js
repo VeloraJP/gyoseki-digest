@@ -1,7 +1,8 @@
 import { analysisComparison, selectAnalysisTarget } from "../core/analysis.js";
 import { buildFactorList, diffPair } from "../core/compare.js";
 import { fieldHint, fieldLabel } from "../data/fields.js";
-import { diffClass, esc, formatDiff, formatRate, formatYen } from "../components/dom.js";
+import { backButtonHtml, diffClass, esc, formatDiff, formatRate, formatYen } from "../components/dom.js";
+import { icon, pageIcon } from "../components/icons.js";
 import { ROUTES } from "../navigation/router.js";
 
 function diffText(figures, previousFigures, code) {
@@ -15,13 +16,15 @@ export function renderAnalysis({ company, link }) {
   const selection = selectAnalysisTarget(company);
   const head = `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
-      <h1>業績を見る</h1>
+      <h1>${pageIcon("chart")}業績を見る</h1>
     </div>`;
 
   if (!selection.target) {
     return head + `
-      <div class="card">
+      <div class="card empty-state">
+        <span class="empty-icon" aria-hidden="true">${icon("sprout")}</span>
         <p>まだ表示できる登録がありません。決算の数値を年次登録するか、月次を12か月分登録すると、ここに業績が表示されます。</p>
         <div class="btn-row">
           <a class="btn btn--primary" href="${link(ROUTES.ANNUAL, { company: company.id, period: "new" })}">年次を登録する</a>

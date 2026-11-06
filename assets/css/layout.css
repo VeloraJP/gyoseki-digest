@@ -2,33 +2,51 @@
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  padding: 0.65rem var(--page-gutter);
-  background: var(--color-paper);
+  padding: 0.6rem var(--page-gutter);
+  background: rgb(255 253 247 / 88%);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--color-line);
   position: sticky; top: 0; z-index: 10;
 }
 
-.brand { display: flex; align-items: center; gap: 0.55rem; text-decoration: none; color: inherit; }
+.brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: inherit; }
 .brand__mark {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 2rem; height: 2rem; border-radius: 8px;
-  background: var(--color-primary); color: #fff; font-size: 1.05rem; font-weight: 700;
+  width: 2.35rem; height: 2.35rem; border-radius: 11px;
+  background: var(--gradient-hero); color: #fff;
+  box-shadow: 0 4px 12px rgb(11 110 87 / 30%);
 }
+.brand__mark svg { width: 1.55rem; height: 1.55rem; display: block; }
 .brand__text { display: flex; flex-direction: column; line-height: 1.2; }
-.brand__text strong { font-size: 1rem; }
+.brand__text strong { font-size: 1.02rem; font-weight: 800; letter-spacing: 0.02em; }
 .brand__text small { color: var(--color-muted); font-size: 0.72rem; }
 
-.topbar__privacy { color: var(--color-muted); font-size: 0.75rem; text-align: right; }
+.topbar__privacy {
+  color: var(--color-primary-dark); font-size: 0.75rem; font-weight: 600; text-align: right;
+  background: var(--color-primary-soft); border-radius: 999px; padding: 0.25rem 0.75rem;
+}
 
 .main-content {
   flex: 1; width: 100%; max-width: var(--content-width);
-  margin: 0 auto; padding: 1.25rem var(--page-gutter) 3rem;
+  margin: 0 auto; padding: 1.35rem var(--page-gutter) 3.5rem;
 }
 
 .app-footer {
-  padding: 1rem var(--page-gutter); color: var(--color-muted);
+  padding: 1.1rem var(--page-gutter); color: var(--color-muted);
   border-top: 1px solid var(--color-line); text-align: center;
 }
+.app-footer .footer-mark { color: var(--color-primary); font-weight: 800; }
 
-.page-head { margin-bottom: 1rem; }
-.page-head .crumb { font-size: 0.85rem; color: var(--color-muted); }
+.page-head { margin-bottom: 1.1rem; }
+.page-head .crumb { font-size: 0.85rem; color: var(--color-muted); margin-top: 0.55rem; }
+
+/* ページ見出しのアイコンチップ */
+.page-icon {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 2.5rem; height: 2.5rem; border-radius: 14px;
+  background: var(--gradient-hero); color: #fff;
+  box-shadow: 0 5px 14px rgb(11 110 87 / 28%);
+}
+.page-icon .icon { width: 1.45rem; height: 1.45rem; }
+.page-icon--sun { background: linear-gradient(135deg, #ffb020, #ff8a3d); box-shadow: 0 5px 14px rgb(255 138 61 / 35%); }
+.page-icon--coral { background: linear-gradient(135deg, #ff6b4a, #f24e6e); box-shadow: 0 5px 14px rgb(242 78 110 / 30%); }

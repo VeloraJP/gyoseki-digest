@@ -4,7 +4,8 @@ import {
   TAX_ACCOUNTING_BASIS,
   TAX_ACCOUNTING_BASIS_LABELS
 } from "../config/constants.js";
-import { esc } from "../components/dom.js";
+import { backButtonHtml, esc } from "../components/dom.js";
+import { pageIcon } from "../components/icons.js";
 import { ROUTES } from "../navigation/router.js";
 import { createCompany } from "../data/schema.js";
 import { removeCompany } from "../core/manage.js";
@@ -19,8 +20,9 @@ export function renderSetup({ params, company, link }) {
 
   return `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.START)}">会社選択</a></p>
-      <h1>${isNew ? "会社の初回設定" : "会社の設定"}</h1>
+      <h1>${pageIcon("gear")}${isNew ? "会社の初回設定" : "会社の設定"}</h1>
       <p class="note">ここでは会社の基本設定だけを行います。業績の数字は求めません。</p>
     </div>
     <form id="setup-form" class="card">
@@ -75,7 +77,11 @@ export function mountSetup(el, { store, params, navigate }) {
   const deleteCompanyBtn = el.querySelector("#delete-company-btn");
   if (deleteCompanyBtn && existingId) {
     const confirmBox = el.querySelector("#delete-company-confirm");
-    deleteCompanyBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    deleteCompanyBtn.addEventListener("click", () => {
+      confirmBox.hidden = false;
+      // 確認ボックスはページ最下部に開くため、見える位置までスクロールして知らせる。
+      confirmBox.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    });
     el.querySelector("#delete-company-confirm-btn")?.addEventListener("click", () => {
       store.commit((draft) => { removeCompany(draft, existingId); });
       navigate(ROUTES.START);

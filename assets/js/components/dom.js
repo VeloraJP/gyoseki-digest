@@ -67,6 +67,12 @@ export function parseAmountInput(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
+// 各画面共通の「前のページへ戻る」ボタン。
+// 実際の遷移（直前の画面／履歴がない場合は定位置）は app.js が data-back を拾って行う。
+export function backButtonHtml() {
+  return `<div class="btn-row" style="margin-top:0"><button type="button" class="btn" data-back>← 前のページへ戻る</button></div>`;
+}
+
 export function formatYearMonth(yearMonth) {
   if (!yearMonth) return "";
   const [y, m] = yearMonth.split("-");

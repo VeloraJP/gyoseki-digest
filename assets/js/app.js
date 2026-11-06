@@ -124,6 +124,30 @@ try {
 
 router.start();
 
+// 「前のページへ戻る」ボタン（各画面の data-back）の処理。
+// 履歴がなければ、会社に紐づく画面はその会社のホーム、それ以外は会社選択へ戻る。
+main.addEventListener("click", (event) => {
+  const trigger = event.target?.closest?.("[data-back]");
+  if (!trigger) return;
+  const { route, params } = router.current();
+  const fallback = params.company && route !== ROUTES.HOME
+    ? buildHash(ROUTES.HOME, { company: params.company })
+    : buildHash(ROUTES.START);
+  router.back(fallback);
+});
+
+// ブラウザの戻る／進むでページ自体が復元された（bfcache）場合は、
+// 端末内保存から読み直してから表示し直す（古い画面のまま操作させない）。
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  try {
+    store.initialize();
+  } catch {
+    // 読み直しに失敗した場合は、現在の状態のまま表示し直す。
+  }
+  router.handleChange();
+});
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch(() => {});

@@ -207,3 +207,28 @@ test("データ管理画面にbusiness-tool2-2からの移行がある", () => {
   assert.match(html, /ほかのツールからの移行（business-tool2-2）/);
   assert.match(html, /新しい会社として追加/);
 });
+
+test("戻るボタン：対象の各画面にあり、スタートとホームにはない", () => {
+  const company = sampleCompany();
+  const period = company.annualPeriods[1];
+  const record = company.monthlyRecords.find((r) => r.yearMonth === "2026-10");
+  const withBack = [
+    renderSetup({ params: {}, company: null, link }),
+    renderSetup({ params: { company: company.id }, company, link }),
+    renderAnnual({ company, period: null, link }),
+    renderAnnual({ company, period, link }),
+    renderMonthly({ company, yearMonth: "2026-10", record, link }),
+    renderAnalysis({ company, link }),
+    renderGoal({ company, params: {}, link }),
+    renderReview({ company, params: { tab: "annual" }, link }),
+    renderData({ link })
+  ];
+  for (const html of withBack) {
+    assert.match(html, /data-back/);
+    assert.match(html, /前のページへ戻る/);
+  }
+  const data = createPersistentData();
+  data.companies.push(company);
+  assert.ok(!renderStart({ data, link }).includes("data-back"));
+  assert.ok(!renderHome({ company, link }).includes("data-back"));
+});

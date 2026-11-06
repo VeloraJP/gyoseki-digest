@@ -12,6 +12,7 @@ import {
 } from "../core/goal.js";
 import { clearPeriodGoal } from "../core/manage.js";
 import {
+  backButtonHtml,
   esc,
   formatPercent,
   formatYearMonth,
@@ -20,8 +21,24 @@ import {
   parseAmountInput,
   toYen
 } from "../components/dom.js";
+import { icon, pageIcon } from "../components/icons.js";
 import { ROUTES } from "../navigation/router.js";
 import { sortedPeriods } from "./home.js";
+
+// 進捗バーの幅（0〜100に丸める）。数値でない場合は0。
+function barWidth(rate) {
+  return typeof rate === "number" && Number.isFinite(rate)
+    ? Math.min(100, Math.max(0, rate))
+    : 0;
+}
+
+function progressBarHtml(rate, { light = false, done = false } = {}) {
+  const width = barWidth(rate);
+  return `<div class="progress${light ? " progress--light" : ""}${done || width >= 100 ? " progress--done" : ""}">
+    <div class="progress__bar" style="width:${width}%"></div>
+    <span class="progress__cap">${icon("flag")}</span>
+  </div>`;
+}
 
 const GOAL_TYPE_ORDER = ["PL025", "PL020", "PL017"];
 
@@ -51,7 +68,8 @@ function reasonMessage(reason) {
 function renderResult(company, period) {
   const goal = period.goal;
   if (!goal) {
-    return `<div class="card">
+    return `<div class="card empty-state">
+      <span class="empty-icon" aria-hidden="true">${icon("flag")}</span>
       <p>目標を保存すると、必要な売上高と「あといくら必要か」「達成率」がここに表示されます。</p>
     </div>`;
   }
@@ -65,7 +83,7 @@ function renderResult(company, period) {
     ? `<div class="kpi-item">
          <div class="kpi-label">${esc(fieldLabel(progress.profitProgress.profitCode))}の累計（目標 ${formatYen(progress.profitProgress.target)}）</div>
          <div class="kpi-value">${formatYen(progress.profitProgress.actual)}</div>
-         ${progress.profitProgress.rate !== null ? `<div class="kpi-sub">進捗率 ${formatPercent(progress.profitProgress.rate)}</div>` : ""}
+         ${progress.profitProgress.rate !== null ? `<div class="kpi-sub">進捗率 ${formatPercent(progress.profitProgress.rate)}</div>${progressBarHtml(progress.profitProgress.rate)}` : ""}
        </div>`
     : "";
 
@@ -85,6 +103,7 @@ function renderResult(company, period) {
              <div class="kpi-value">${formatYen(progress.remainingSales)}</div>
            </div>
          </div>
+         ${progressBarHtml(progress.salesProgressRate)}
          ${progress.remainingMonthCount > 0
            ? `<p style="margin-top:0.8rem">残り<strong>${progress.remainingMonthCount}か月</strong>で、月平均あと<strong>${formatYen(progress.requiredMonthlyAverage)}</strong>の売上が必要です。<br>
               これまでの実績ペースは、月平均 <strong>${formatYen(progress.actualMonthlyAverage)}</strong> の売上です。</p>`
@@ -116,6 +135,7 @@ function renderResult(company, period) {
           <div class="kpi-sub">現在売上 ÷ 必要売上高</div>
         </div>
       </div>
+      ${progressBarHtml(result.achievementRate, { light: true, done: result.alreadyAchieved })}
     </div>
     <div class="note-box">
       ${esc(assumptionText(result.goalType))}<br>
@@ -147,15 +167,17 @@ function renderPlans(period) {
 export function renderGoal({ company, params, link }) {
   const head = `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
-      <h1>目標と進捗</h1>
+      <h1>${pageIcon("flag", "sun")}目標と進捗</h1>
       <p class="note">目標の利益を決めると、そのために必要な売上高と、あといくら必要かを表示します。</p>
     </div>`;
 
   const periods = sortedPeriods(company);
   if (periods.length === 0) {
     return head + `
-      <div class="card">
+      <div class="card empty-state">
+        <span class="empty-icon" aria-hidden="true">${icon("book")}</span>
         <p>年次登録がまだありません。目標は、決算の数字（年次登録）をもとに計算します。まず年次を登録してください。</p>
         <div class="btn-row">
           <a class="btn btn--primary" href="${link(ROUTES.ANNUAL, { company: company.id, period: "new" })}">年次を登録する</a>
@@ -271,7 +293,11 @@ export function mountGoal(el, { store, company, navigate }) {
   const clearBtn = el.querySelector("#goal-clear-btn");
   if (clearBtn) {
     const confirmBox = el.querySelector("#goal-clear-confirm");
-    clearBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    clearBtn.addEventListener("click", () => {
+      confirmBox.hidden = false;
+      // 確認ボックスが見える位置までスクロールして知らせる。
+      confirmBox.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    });
     el.querySelector("#goal-clear-confirm-btn")?.addEventListener("click", () => {
       const periodId = periodSelect.value;
       store.commit((draft) => {

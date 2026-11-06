@@ -1,8 +1,14 @@
 @media (max-width: 640px) {
   .topbar__privacy { display: none; }
-  .kpi-big .kpi-value { font-size: 1.7rem; }
+  .kpi-big .kpi-value { font-size: 1.95rem; }
   .btn { width: 100%; }
   .btn-row .btn { flex: 1 1 auto; }
   .btn--small { width: auto; }
+  .nav-grid { grid-template-columns: repeat(2, 1fr); }
+  .nav-grid .btn { width: auto; min-height: 92px; }
+  .page-icon { width: 2.2rem; height: 2.2rem; border-radius: 12px; }
+  .page-icon .icon { width: 1.3rem; height: 1.3rem; }
+  h1 { font-size: 1.35rem; }
   .list-rows li { flex-wrap: wrap; }
+  .company-card .btn-row { width: 100%; }
 }

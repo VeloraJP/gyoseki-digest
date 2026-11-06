@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gyoseki-digest-v2';
+const CACHE_NAME = 'gyoseki-digest-v4';
 const APP_SHELL = [
   './',
   './index.html',

@@ -8,7 +8,8 @@ import {
 } from "../data/fields.js";
 import { getAnnualFigures, getMonthlyFigures, findMonthlyRecord } from "../core/calc.js";
 import { diffPair, monthlyCumulative, shiftYearMonth } from "../core/compare.js";
-import { diffClass, esc, formatDiff, formatRate, formatYearMonth, formatYen } from "../components/dom.js";
+import { backButtonHtml, diffClass, esc, formatDiff, formatRate, formatYearMonth, formatYen } from "../components/dom.js";
+import { icon, pageIcon } from "../components/icons.js";
 import { ROUTES } from "../navigation/router.js";
 import { sortedPeriods } from "./home.js";
 
@@ -31,7 +32,7 @@ function rowHtml(code, current, previous, cumulative) {
 function renderAnnualReview({ company, params, link }) {
   const periods = sortedPeriods(company);
   if (periods.length === 0) {
-    return `<div class="card"><p>年次登録がまだありません。登録すると年度の比較が表示されます。</p>
+    return `<div class="card empty-state"><span class="empty-icon" aria-hidden="true">${icon("book")}</span><p>年次登録がまだありません。登録すると年度の比較が表示されます。</p>
       <div class="btn-row"><a class="btn btn--primary" href="${link(ROUTES.ANNUAL, { company: company.id, period: "new" })}">年次を登録する</a></div></div>`;
   }
   const target = periods.find((p) => p.id === params.period) ?? periods[periods.length - 1];
@@ -75,7 +76,7 @@ function renderAnnualReview({ company, params, link }) {
 function renderMonthlyReview({ company, params, link }) {
   const records = [...(company.monthlyRecords ?? [])].sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
   if (records.length === 0) {
-    return `<div class="card"><p>月次登録がまだありません。登録すると月ごとの比較が表示されます。</p>
+    return `<div class="card empty-state"><span class="empty-icon" aria-hidden="true">${icon("calendar")}</span><p>月次登録がまだありません。登録すると月ごとの比較が表示されます。</p>
       <div class="btn-row"><a class="btn btn--primary" href="${link(ROUTES.MONTHLY, { company: company.id })}">月次を登録する</a></div></div>`;
   }
   const targetYm = records.some((r) => r.yearMonth === params.ym)
@@ -141,8 +142,9 @@ export function renderReview({ company, params, link }) {
   const tab = params.tab === "monthly" ? "monthly" : "annual";
   return `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
-      <h1>月次・年度レビュー</h1>
+      <h1>${pageIcon("calendar")}月次・年度レビュー</h1>
       <p class="note">前月・前年同月・前年度と比べて、数字がどう変わったかを確認します。</p>
     </div>
     <nav class="tabs" aria-label="レビューの切り替え">

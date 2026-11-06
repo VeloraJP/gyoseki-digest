@@ -3,4 +3,10 @@
   body { background: #fff; }
   .main-content { max-width: none; padding: 0; }
   .card { box-shadow: none; break-inside: avoid; }
+  .card--accent { background: #fff; color: inherit; box-shadow: none; }
+  .card--accent .kpi-label, .card--accent .kpi-sub { color: inherit; }
+  .card--accent::before, .card--accent::after { display: none; }
+  .table-wrap { box-shadow: none; }
+  .progress { border: 1px solid #999; background: #fff; }
+  .progress__bar { background: #bbb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

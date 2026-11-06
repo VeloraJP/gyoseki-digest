@@ -16,7 +16,8 @@ import { createAnnualPeriod, defaultPeriodDisplayName } from "../data/schema.js"
 import { removeAnnualPeriod } from "../core/manage.js";
 import { buildMonthlyAggregate, fiscalPeriodMonths, getAnnualFigures, getBSFigures, listFiscalKeys } from "../core/calc.js";
 import { validateAnnualRegistration } from "../core/validate.js";
-import { esc, formatYen, fromYen, parseAmountInput, toYen } from "../components/dom.js";
+import { backButtonHtml, esc, formatYen, fromYen, parseAmountInput, toYen } from "../components/dom.js";
+import { pageIcon } from "../components/icons.js";
 import { ROUTES } from "../navigation/router.js";
 
 function amountField(code, values, unit) {
@@ -44,8 +45,9 @@ export function renderAnnual({ company, period, link }) {
 
   return `
     <div class="page-head">
+      ${backButtonHtml()}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
-      <h1>年次登録${isNew ? "" : "（登録済みの期）"}</h1>
+      <h1>${pageIcon("book")}年次登録${isNew ? "" : "（登録済みの期）"}</h1>
       <p class="note">決算が確定したあと、年1回の登録を基本とします。金額の入力単位は「${unitLabel}」です。</p>
     </div>
     <form id="annual-form" class="card" novalidate>
@@ -190,7 +192,11 @@ export function mountAnnual(el, { store, company, period, navigate }) {
   const deletePeriodBtn = el.querySelector("#delete-period-btn");
   if (deletePeriodBtn && period) {
     const confirmBox = el.querySelector("#delete-period-confirm");
-    deletePeriodBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    deletePeriodBtn.addEventListener("click", () => {
+      confirmBox.hidden = false;
+      // 確認ボックスはページ最下部に開くため、見える位置までスクロールして知らせる。
+      confirmBox.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    });
     el.querySelector("#delete-period-confirm-btn")?.addEventListener("click", () => {
       store.commit((draft) => {
         const target = draft.companies.find((c) => c.id === company.id);
@@ -226,7 +232,9 @@ export function mountAnnual(el, { store, company, period, navigate }) {
       displayName: el.querySelector("#f-display").value.trim() || defaultPeriodDisplayName(endInput.value),
       stage,
       values,
-      bsValues
+      bsValues,
+      // 編集保存で期を作り直すため、設定済みの目標は引き継ぐ（引き継がないと目標が消える）。
+      goal: period?.goal ?? null
     });
     // 新規作成時は schema 側でIDが採番される。編集時は既存IDを維持する。
     if (period?.id) candidate.id = period.id;
