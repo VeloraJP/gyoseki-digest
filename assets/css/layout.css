@@ -1,0 +1,34 @@
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.65rem var(--page-gutter);
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--color-line);
+  position: sticky; top: 0; z-index: 10;
+}
+
+.brand { display: flex; align-items: center; gap: 0.55rem; text-decoration: none; color: inherit; }
+.brand__mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; border-radius: 8px;
+  background: var(--color-primary); color: #fff; font-size: 1.05rem; font-weight: 700;
+}
+.brand__text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand__text strong { font-size: 1rem; }
+.brand__text small { color: var(--color-muted); font-size: 0.72rem; }
+
+.topbar__privacy { color: var(--color-muted); font-size: 0.75rem; text-align: right; }
+
+.main-content {
+  flex: 1; width: 100%; max-width: var(--content-width);
+  margin: 0 auto; padding: 1.25rem var(--page-gutter) 3rem;
+}
+
+.app-footer {
+  padding: 1rem var(--page-gutter); color: var(--color-muted);
+  border-top: 1px solid var(--color-line); text-align: center;
+}
+
+.page-head { margin-bottom: 1rem; }
+.page-head .crumb { font-size: 0.85rem; color: var(--color-muted); }

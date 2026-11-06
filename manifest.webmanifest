@@ -1,0 +1,1 @@
+{"background_color":"#f7f8f6","description":"登録した決算と月次の数字から、結局いくら儲かるのかと前との変化を自動でまとめるツール","display":"standalone","icons":[{"purpose":"any maskable","sizes":"any","src":"./icon.svg","type":"image/svg+xml"}],"lang":"ja","name":"業績ダイジェスト","orientation":"any","scope":"./","short_name":"業績ダイジェスト","start_url":"./index.html","theme_color":"#17624d"}

@@ -1,0 +1,8 @@
+@media (max-width: 640px) {
+  .topbar__privacy { display: none; }
+  .kpi-big .kpi-value { font-size: 1.7rem; }
+  .btn { width: 100%; }
+  .btn-row .btn { flex: 1 1 auto; }
+  .btn--small { width: auto; }
+  .list-rows li { flex-wrap: wrap; }
+}
