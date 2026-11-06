@@ -33,6 +33,7 @@ export function renderStart({ data, link }) {
       : `<div class="company-list">${cards}</div>`}
     <div class="btn-row">
       <a class="btn btn--primary" href="${link(ROUTES.SETUP)}">${icon("plus")}会社を追加する</a>
+      <a class="btn" href="${link(ROUTES.SIMULATIONS)}">${icon("calculator")}試算（簡易シミュレーション）</a>
       <a class="btn" href="${link(ROUTES.DATA)}">${icon("database")}データ管理（バックアップ・復元）</a>
     </div>
     <div class="note-box">

@@ -35,7 +35,9 @@ const PATHS = {
   // 時計（月次）
   clock: '<circle cx="12" cy="12" r="8.8"/><path d="M12 7.2V12l3.2 2"/>',
   // プラス
-  plus: '<circle cx="12" cy="12" r="8.8"/><path d="M12 8.2v7.6"/><path d="M8.2 12h7.6"/>'
+  plus: '<circle cx="12" cy="12" r="8.8"/><path d="M12 8.2v7.6"/><path d="M8.2 12h7.6"/>',
+  // 電卓（試算）
+  calculator: '<rect x="6" y="2.8" width="12" height="18.4" rx="1.8"/><path d="M9.3 6.2h5.4"/><path d="M9.3 10.6h.01"/><path d="M12 10.6h.01"/><path d="M14.7 10.6h.01"/><path d="M9.3 14h.01"/><path d="M12 14h.01"/><path d="M14.7 14h.01"/><path d="M9.3 17.4h.01"/><path d="M12 17.4h.01"/><path d="M14.7 17.4h.01"/>'
 };
 
 export function icon(name, extraClass = "") {

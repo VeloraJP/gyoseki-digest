@@ -11,6 +11,8 @@ import { mountSummary, renderSummary } from "./views/summary.js";
 import { mountGoal, renderGoal } from "./views/goal.js";
 import { mountReview, renderReview } from "./views/review.js";
 import { mountData, renderData } from "./views/data.js";
+import { mountSimInput, renderSimInput, renderSimResult, renderSimulations } from "./views/simulations.js";
+import { SIMULATION_BY_ID } from "./core/simulations.js";
 import { findMonthlyRecord } from "./core/calc.js";
 
 const main = document.querySelector("#app");
@@ -103,6 +105,34 @@ function render({ route, params }) {
       main.innerHTML = renderData(ctx);
       mountData(main, ctx);
       break;
+    case ROUTES.SIMULATIONS: {
+      // 試算は会社なしでも使える。会社パラメータがあるのに見つからない場合だけエラーにする。
+      const company = params.company ? store.getCompany(params.company) : null;
+      if (params.company && !company) { notFoundCompany(); break; }
+      main.innerHTML = renderSimulations({ ...ctx, company });
+      break;
+    }
+    case ROUTES.SIMULATION: {
+      const company = params.company ? store.getCompany(params.company) : null;
+      if (params.company && !company) { notFoundCompany(); break; }
+      if (!SIMULATION_BY_ID[params.sim]) {
+        main.innerHTML = renderSimulations({ ...ctx, company });
+        break;
+      }
+      main.innerHTML = renderSimInput({ ...ctx, company });
+      mountSimInput(main, { ...ctx, company });
+      break;
+    }
+    case ROUTES.SIM_RESULT: {
+      const company = params.company ? store.getCompany(params.company) : null;
+      if (params.company && !company) { notFoundCompany(); break; }
+      if (!SIMULATION_BY_ID[params.sim]) {
+        main.innerHTML = renderSimulations({ ...ctx, company });
+        break;
+      }
+      main.innerHTML = renderSimResult({ ...ctx, company });
+      break;
+    }
     default:
       main.innerHTML = renderStart(ctx);
   }

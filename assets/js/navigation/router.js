@@ -9,7 +9,10 @@ export const ROUTES = Object.freeze({
   SUMMARY: "summary",
   GOAL: "goal",
   REVIEW: "review",
-  DATA: "data"
+  DATA: "data",
+  SIMULATIONS: "simulations",
+  SIMULATION: "simulation",
+  SIM_RESULT: "sim-result"
 });
 
 const ROUTE_SET = new Set(Object.values(ROUTES));

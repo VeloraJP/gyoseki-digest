@@ -97,6 +97,7 @@ export function renderHome({ company, link }) {
       <a class="btn btn--primary" href="${link(ROUTES.ANALYSIS, { company: company.id })}">${icon("chart")}業績を見る</a>
       <a class="btn" href="${link(ROUTES.SUMMARY, { company: company.id })}">${icon("sparkle")}1枚サマリー</a>
       <a class="btn" href="${link(ROUTES.GOAL, { company: company.id })}">${icon("target")}目標と進捗</a>
+      <a class="btn" href="${link(ROUTES.SIMULATIONS, { company: company.id })}">${icon("calculator")}試算する</a>
       <a class="btn" href="${link(ROUTES.REVIEW, { company: company.id, tab: "annual" })}">${icon("calendar")}月次・年度レビュー</a>
       <a class="btn" href="${link(ROUTES.ANNUAL, { company: company.id, period: "new" })}">${icon("book")}年次を登録する</a>
       <a class="btn" href="${link(ROUTES.MONTHLY, { company: company.id })}">${icon("clock")}月次を登録する</a>
