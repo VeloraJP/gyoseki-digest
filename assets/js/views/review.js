@@ -8,6 +8,8 @@ import {
 } from "../data/fields.js";
 import { getAnnualFigures, getMonthlyFigures, findMonthlyRecord } from "../core/calc.js";
 import { diffPair, monthlyCumulative, shiftYearMonth } from "../core/compare.js";
+import { buildAnnualTrend, buildMonthlyTrend } from "../core/trend.js";
+import { barChartSvg } from "../components/chart.js";
 import { backButtonHtml, diffClass, esc, formatDiff, formatRate, formatYearMonth, formatYen } from "../components/dom.js";
 import { icon, pageIcon } from "../components/icons.js";
 import { ROUTES } from "../navigation/router.js";
@@ -27,6 +29,63 @@ function rowHtml(code, current, previous, cumulative) {
     ${previous ? `<td>${formatYen(d.previous)}</td><td class="${diffClass(d.amount)}">${formatDiff(d.amount)}</td><td class="${diffClass(d.amount)}">${formatRate(d.rate)}</td>` : ""}
     ${cumulative !== undefined ? `<td>${formatYen(cumulative)}</td>` : ""}
   </tr>`;
+}
+
+function chartFigure(heading, svg) {
+  return `<div class="chart-block">
+    <div class="chart-heading">${esc(heading)}</div>
+    <div class="chart-scroll">${svg}</div>
+  </div>`;
+}
+
+// 年次の推移グラフ（追加フェーズ）。登録済みの期だけを並べる。
+function renderAnnualTrend(company) {
+  const trend = buildAnnualTrend(company);
+  const head = `<h2>推移グラフ</h2>`;
+  if (trend.count < 2) {
+    return head + `<div class="card"><p class="note" style="margin:0">―<br>推移グラフは、2期分以上の年次登録があると表示されます。</p></div>`;
+  }
+  const shortLabel = (p) => {
+    const [y, m] = p.endDate.split("-");
+    return `${String(y).slice(2)}年${Number(m)}月期`;
+  };
+  const mk = (code, name) => trend.points.map((p) => ({
+    label: shortLabel(p),
+    value: p[code],
+    title: `${p.label} ${name}：${formatYen(p[code])}`
+  }));
+  return head + `<div class="card">
+    ${chartFigure("売上高の推移", barChartSvg({ points: mk("PL001", "売上高"), ariaLabel: "売上高の推移グラフ" }))}
+    ${chartFigure("当期純利益の推移（税金などを引いたあと、最終的に残る利益）", barChartSvg({ points: mk("PL025", "当期純利益"), barClass: "chart-bar--profit", ariaLabel: "当期純利益の推移グラフ" }))}
+    ${trend.hasOperating
+      ? chartFigure("営業利益の推移（本業で得た利益）", barChartSvg({ points: mk("PL017", "営業利益"), barClass: "chart-bar--profit", ariaLabel: "営業利益の推移グラフ" }))
+      : `<p class="note">営業利益（本業の利益）の推移は、すべての期が標準登録（内訳まで登録）のときに表示されます。</p>`}
+    <p class="note" style="margin-bottom:0">バーの上に添えた金額は、目で追うための概数（万円単位）です。正確な金額は下の表で確認してください。</p>
+  </div>`;
+}
+
+// 月次の推移グラフ（追加フェーズ）。直近12か月までを表示する。
+function renderMonthlyTrend(company) {
+  const trend = buildMonthlyTrend(company);
+  const head = `<h2>推移グラフ</h2>`;
+  if (trend.count < 2) {
+    return head + `<div class="card"><p class="note" style="margin:0">―<br>推移グラフは、2か月分以上の月次登録があると表示されます。</p></div>`;
+  }
+  const mk = (code, name) => trend.series[code].map((pt) => {
+    const [y, m] = pt.yearMonth.split("-");
+    return {
+      label: `${String(y).slice(2)}/${Number(m)}`,
+      value: pt.value,
+      title: `${formatYearMonth(pt.yearMonth)} ${name}：${formatYen(pt.value)}`
+    };
+  });
+  return head + `<div class="card">
+    ${trend.truncated ? `<p class="note" style="margin-top:0">登録が多いため、直近${trend.limit}か月を表示しています。</p>` : ""}
+    ${chartFigure("売上高の推移", barChartSvg({ points: mk("M001", "売上高"), ariaLabel: "売上高の推移グラフ" }))}
+    ${chartFigure("営業利益の推移（本業で得た利益）", barChartSvg({ points: mk("M103", "営業利益"), barClass: "chart-bar--profit", ariaLabel: "営業利益の推移グラフ" }))}
+    ${chartFigure("当期純利益の推移（その月の最終利益）", barChartSvg({ points: mk("M007", "当期純利益"), barClass: "chart-bar--profit", ariaLabel: "当期純利益の推移グラフ" }))}
+    <p class="note" style="margin-bottom:0">バーの上に添えた金額は、目で追うための概数（万円単位）です。正確な金額は下の表で確認してください。</p>
+  </div>`;
 }
 
 function renderAnnualReview({ company, params, link }) {
@@ -65,6 +124,7 @@ function renderAnnualReview({ company, params, link }) {
       <select id="review-period" data-review-select="period">${options}</select>
     </div>
     ${previous ? "" : `<p class="note">前年度の登録がないため、この期だけの表を表示しています。</p>`}
+    ${renderAnnualTrend(company)}
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr><th>項目</th><th>${esc(target.displayName)}</th>${previous ? `<th>前年度（${esc(previous.displayName)}）</th><th>増減額</th><th>増減率</th>` : ""}</tr></thead>
@@ -122,6 +182,7 @@ function renderMonthlyReview({ company, params, link }) {
     </div>
     ${prevMonth ? "" : `<p class="note">前月の登録がないため、前月との比較は表示していません。</p>`}
     ${prevYear ? "" : `<p class="note">前年同月の登録がないため、前年同月との比較は表示していません。</p>`}
+    ${renderMonthlyTrend(company)}
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr>

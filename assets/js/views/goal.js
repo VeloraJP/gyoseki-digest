@@ -6,6 +6,7 @@ import {
 import { fieldHint, fieldLabel } from "../data/fields.js";
 import {
   compareGoalPlans,
+  computeBreakEven,
   computeGoalProgress,
   computeRequiredSales,
   latestGoalPeriod
@@ -162,6 +163,43 @@ function renderResult(company, period) {
     ${progressHtml}`;
 }
 
+function breakEvenReasonMessage(reason) {
+  if (reason === "NO_SALES") return "この期の売上高が0のため、計算できません。";
+  if (reason === "RATE_NOT_POSITIVE") {
+    return "この期は、売上に対して原価などの変動費が大きく、売上を増やしても利益が増えにくい形のため、この計算では求められません。";
+  }
+  return "計算に必要な数字がそろっていません。";
+}
+
+// 損益分岐点（赤字にならない最低限の売上）。目標の有無にかかわらず、
+// 標準登録の期では常に出す。出せない場合は枠を残して理由を示す。
+function renderBreakEven(period) {
+  const result = computeBreakEven(period);
+  const head = `<h2>赤字にならない最低限の売上（損益分岐点）</h2>`;
+  if (!result.ok) {
+    return head + `
+    <div class="card">
+      <div class="kpi-item">
+        <div class="kpi-label">損益分岐点の売上高<span class="note">（売上と費用がちょうど釣り合う金額）</span></div>
+        <div class="kpi-value">―</div>
+        <div class="kpi-sub">${esc(breakEvenReasonMessage(result.reason))}</div>
+      </div>
+    </div>`;
+  }
+  const diffText = result.difference >= 0
+    ? `現在の売上 ${formatYen(result.sales)} は、損益分岐点より ${formatYen(result.difference)} 多い金額です。`
+    : `現在の売上 ${formatYen(result.sales)} は、損益分岐点まであと ${formatYen(-result.difference)} 足りません。`;
+  return head + `
+    <div class="card">
+      <div class="kpi-item">
+        <div class="kpi-label">損益分岐点の売上高<span class="note">（売上と費用がちょうど釣り合う金額）</span></div>
+        <div class="kpi-value">${formatYen(result.breakEvenSales)}</div>
+        <div class="kpi-sub">この期の費用の内訳（固定費・変動費）で計算しています。売上がこの金額を下回ると、営業利益（本業の利益）がマイナスになります。</div>
+      </div>
+      <p style="margin:0.7rem 0 0">${esc(diffText)}</p>
+    </div>`;
+}
+
 function renderPlans(period) {
   const goalAmount = period.goal && period.goal.profitCode ? period.goal.amount : null;
   const inputs = [0, 1, 2].map((i) => `
@@ -267,7 +305,7 @@ export function renderGoal({ company, params, link }) {
         </div>` : ""}
     </div>`;
 
-  return head + periodSelect + form + renderResult(company, selected) + renderPlans(selected) + `
+  return head + periodSelect + form + renderResult(company, selected) + renderBreakEven(selected) + renderPlans(selected) + `
     <div class="btn-row">
       <a class="btn" href="${link(ROUTES.ANALYSIS, { company: company.id })}">業績を見るへ</a>
       <a class="btn" href="${link(ROUTES.HOME, { company: company.id })}">ホームへ戻る</a>

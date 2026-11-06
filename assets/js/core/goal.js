@@ -109,6 +109,38 @@ export function computeRequiredSales(period, goal) {
   };
 }
 
+// 損益分岐点（赤字にならない最低限の売上）。追加フェーズ。
+// 損益分岐点売上高 ＝ 固定費合計 ÷ 限界利益率
+// （必要売上高の計算で、目標営業利益を0とした場合と同じ金額になる）
+// 計算できない場合は ok: false と理由コードを返す（数値を推測で作らない）。
+export function computeBreakEven(period) {
+  if (!period || period.stage !== REGISTRATION_STAGES.STANDARD) {
+    return { ok: false, reason: "NOT_STANDARD" };
+  }
+  const structure = getCostStructure(period);
+  if (!structure) return { ok: false, reason: "MISSING_FIGURES" };
+  if (!(structure.sales > 0)) {
+    return { ok: false, reason: "NO_SALES", ...structure };
+  }
+  if (structure.marginalProfitRate === null || structure.marginalProfitRate <= 0) {
+    return { ok: false, reason: "RATE_NOT_POSITIVE", ...structure };
+  }
+  const breakEvenSales = Math.round(structure.fixedCosts / structure.marginalProfitRate);
+  const difference = structure.sales - breakEvenSales;
+  return {
+    ok: true,
+    sales: structure.sales,
+    fixedCosts: structure.fixedCosts,
+    variableCosts: structure.variableCosts,
+    marginalProfitRate: structure.marginalProfitRate,
+    breakEvenSales,
+    // 現在の売上と損益分岐点の差（プラスなら上回っている、マイナスなら足りない）
+    difference,
+    // 余裕率 ＝（売上 − 損益分岐点）÷ 売上 × 100
+    cushionRate: (difference / structure.sales) * 100
+  };
+}
+
 // 複数案の比較（発展系④の限定形）。同じ基礎データのまま、目標額だけを変える。
 // 案は保存しない、その場の計算結果だけを返す。
 export function compareGoalPlans(period, profitCode, amounts) {

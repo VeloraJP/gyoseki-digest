@@ -6,6 +6,7 @@ export const ROUTES = Object.freeze({
   ANNUAL: "annual",
   MONTHLY: "monthly",
   ANALYSIS: "analysis",
+  SUMMARY: "summary",
   GOAL: "goal",
   REVIEW: "review",
   DATA: "data"

@@ -7,6 +7,7 @@ import { renderHome } from "./views/home.js";
 import { mountAnnual, renderAnnual } from "./views/annual.js";
 import { mountMonthly, renderMonthly } from "./views/monthly.js";
 import { renderAnalysis } from "./views/analysis.js";
+import { mountSummary, renderSummary } from "./views/summary.js";
 import { mountGoal, renderGoal } from "./views/goal.js";
 import { mountReview, renderReview } from "./views/review.js";
 import { mountData, renderData } from "./views/data.js";
@@ -75,6 +76,13 @@ function render({ route, params }) {
       const company = params.company ? store.getCompany(params.company) : null;
       if (!company) { notFoundCompany(); break; }
       main.innerHTML = renderAnalysis({ ...ctx, company });
+      break;
+    }
+    case ROUTES.SUMMARY: {
+      const company = params.company ? store.getCompany(params.company) : null;
+      if (!company) { notFoundCompany(); break; }
+      main.innerHTML = renderSummary({ ...ctx, company });
+      mountSummary(main, { ...ctx, company });
       break;
     }
     case ROUTES.GOAL: {

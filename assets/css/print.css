@@ -9,4 +9,10 @@
   .table-wrap { box-shadow: none; }
   .progress { border: 1px solid #999; background: #fff; }
   .progress__bar { background: #bbb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* 推移グラフ：印刷でもバーの色を保ち、横スクロールを解除して全体を収める */
+  .chart-scroll { overflow: visible; }
+  .chart-svg { max-width: 100%; }
+  .chart-bar, .chart-bar--profit, .chart-bar--neg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* 1枚サマリー：操作用ボタン類は印刷しない */
+  .summary-actions { display: none !important; }
 }
