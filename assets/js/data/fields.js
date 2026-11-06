@@ -36,7 +36,7 @@ export const PL_FIELDS = Object.freeze([
   field("PL022", "特別損失", { hint: "その期だけの特別な損失" }),
   field("PL023", "税引前当期純利益", { auto: true, allowNegative: true, hint: "税金を引く前の最終利益" }),
   field("PL024", "法人税等", { allowNegative: true, hint: "法人税・住民税・事業税などの合計" }),
-  field("PL025", "当期純利益", { auto: true, allowNegative: true, hint: "最終的に残る利益" })
+  field("PL025", "当期純利益", { auto: true, allowNegative: true, hint: "税金などを引いたあと、最終的に残る利益" })
 ]);
 
 // 簡易登録で入力する項目（仕様書 4.3.1）

@@ -79,13 +79,29 @@ function renderResult(company, period) {
   }
   const progress = computeGoalProgress(company, period, result);
 
-  const profitProgressHtml = progress?.profitProgress
-    ? `<div class="kpi-item">
-         <div class="kpi-label">${esc(fieldLabel(progress.profitProgress.profitCode))}の累計（目標 ${formatYen(progress.profitProgress.target)}）</div>
-         <div class="kpi-value">${formatYen(progress.profitProgress.actual)}</div>
-         ${progress.profitProgress.rate !== null ? `<div class="kpi-sub">進捗率 ${formatPercent(progress.profitProgress.rate)}</div>${progressBarHtml(progress.profitProgress.rate)}` : ""}
-       </div>`
-    : "";
+  // 利益の累計の枠は、どの利益の種類でも同じ位置に常時出す。
+  // 経常利益は月次に同じ物差しの数字がないため進捗を計算できないが、
+  // 枠ごと消さず、理由を示す（構造をそろえ、何が違うかを利用者に伝える）。
+  let profitProgressHtml = "";
+  if (progress) {
+    if (progress.profitProgress) {
+      const pp = progress.profitProgress;
+      const ppHint = fieldHint(pp.profitCode);
+      profitProgressHtml = `<div class="kpi-item">
+         <div class="kpi-label">${esc(fieldLabel(pp.profitCode))}の累計${ppHint ? `<span class="note">（${esc(ppHint)}）</span>` : ""}（目標 ${formatYen(pp.target)}）</div>
+         <div class="kpi-value">${formatYen(pp.actual)}</div>
+         <div class="kpi-sub">月次に登録した${esc(fieldLabel(pp.profitCode))}の合計です</div>
+         ${pp.rate !== null ? `<div class="kpi-sub">進捗率 ${formatPercent(pp.rate)}</div>${progressBarHtml(pp.rate)}` : ""}
+       </div>`;
+    } else {
+      const typeHint = fieldHint(result.goalType);
+      profitProgressHtml = `<div class="kpi-item">
+         <div class="kpi-label">${esc(fieldLabel(result.goalType))}の累計${typeHint ? `<span class="note">（${esc(typeHint)}）</span>` : ""}（目標 ${formatYen(result.goalAmount)}）</div>
+         <div class="kpi-value">―</div>
+         <div class="kpi-sub">${esc(fieldLabel(result.goalType))}は、月次に同じ物差しの数字がないため、利益の進捗は表示できません。売上の進捗で見てください。</div>
+       </div>`;
+    }
+  }
 
   const progressHtml = progress
     ? `<h2>月次の進捗</h2>
@@ -95,12 +111,13 @@ function renderResult(company, period) {
            <div class="kpi-item">
              <div class="kpi-label">必要売上高までの進捗率</div>
              <div class="kpi-value">${formatPercent(progress.salesProgressRate)}</div>
-             <div class="kpi-sub">月次累計の売上 ${formatYen(progress.cumulativeSales)} ／ 必要売上高 ${formatYen(result.requiredSales)}</div>
+             <div class="kpi-sub">月次累計の売上 ${formatYen(progress.cumulativeSales)} ／ 必要売上高 ${formatYen(result.requiredSales)}（必要な売上高に対して、ここまで進んだ割合）</div>
            </div>
            ${profitProgressHtml}
            <div class="kpi-item">
              <div class="kpi-label">あと必要な売上</div>
              <div class="kpi-value">${formatYen(progress.remainingSales)}</div>
+             <div class="kpi-sub">必要な売上高から、月次累計の売上を引いた金額</div>
            </div>
          </div>
          ${progressBarHtml(progress.salesProgressRate)}
@@ -123,16 +140,17 @@ function renderResult(company, period) {
         <div class="kpi-item">
           <div class="kpi-label">必要な売上高</div>
           <div class="kpi-value">${formatYen(result.requiredSales)}</div>
+          <div class="kpi-sub">目標の利益を出すために必要な、1年間の売上の合計</div>
         </div>
         <div class="kpi-item">
           <div class="kpi-label">あといくら必要か</div>
           <div class="kpi-value">${result.alreadyAchieved ? "届いています" : formatYen(result.additionalSales)}</div>
-          <div class="kpi-sub">現在の売上 ${formatYen(result.sales)} との差</div>
+          <div class="kpi-sub">必要な売上高と、現在の売上 ${formatYen(result.sales)} との差</div>
         </div>
         <div class="kpi-item">
           <div class="kpi-label">達成率</div>
           <div class="kpi-value">${formatPercent(result.achievementRate)}</div>
-          <div class="kpi-sub">現在売上 ÷ 必要売上高</div>
+          <div class="kpi-sub">現在の売上 ÷ 必要な売上高（100%で目標に届きます）</div>
         </div>
       </div>
       ${progressBarHtml(result.achievementRate, { light: true, done: result.alreadyAchieved })}
