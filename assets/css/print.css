@@ -5,6 +5,11 @@
   .card { box-shadow: none; break-inside: avoid; }
   .card--accent { background: #fff; color: inherit; box-shadow: none; }
   .card--accent .kpi-label, .card--accent .kpi-sub { color: inherit; }
+  /* 画面用に白系にした補足・増減の文字色を、印刷では地の色に戻す */
+  .card--accent .kpi-big .kpi-label .hint,
+  .card--accent .kpi-big .kpi-sub,
+  .card--accent .note,
+  .card--accent .diff-up, .card--accent .diff-down, .card--accent .diff-flat { color: inherit; }
   .card--accent::before, .card--accent::after { display: none; }
   .table-wrap { box-shadow: none; }
   .progress { border: 1px solid #999; background: #fff; }

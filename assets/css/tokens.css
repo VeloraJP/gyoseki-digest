@@ -18,7 +18,8 @@
   --color-danger: #bd4a3a;
   --color-up: #0e9f6e;
   --color-down: #dd7a2e;
-  --gradient-hero: linear-gradient(128deg, #0b6e57 0%, #0e8a6d 52%, #17a37e 100%);
+  /* 最も明るい端でも白文字のコントラスト比が4.5:1以上になるよう、濃いめの緑でそろえる */
+  --gradient-hero: linear-gradient(128deg, #095846 0%, #0a6a52 52%, #0c7256 100%);
   --gradient-primary: linear-gradient(128deg, #0e7c66, #119276);
   --gradient-progress: linear-gradient(90deg, #0e9f6e, #57c84b 70%, #ffb020);
   --shadow-card: 0 2px 6px rgb(120 84 20 / 5%), 0 14px 34px rgb(120 84 20 / 8%);

@@ -33,14 +33,27 @@
 }
 .card--accent > * { position: relative; z-index: 1; }
 .card--accent .kpi-label { color: #fff; }
-.card--accent .kpi-label .hint, .card--accent .kpi-sub { color: rgb(255 255 255 / 82%); }
-.card--accent .note { color: rgb(255 255 255 / 82%); }
+.card--accent .kpi-label .hint, .card--accent .kpi-sub { color: rgb(255 255 255 / 90%); }
+.card--accent .note { color: rgb(255 255 255 / 90%); }
+/* .kpi-big 側の淡色指定（.kpi-big .kpi-label .hint / .kpi-big .kpi-sub）より特異度を上げ、
+   濃色カード上では補足文も白系で読める色にする */
+.card--accent .kpi-big .kpi-label .hint,
+.card--accent .kpi-big .kpi-sub { color: rgb(255 255 255 / 90%); }
 .card--accent hr { border-top-color: rgb(255 255 255 / 35%) !important; }
 .card--accent .kpi-item {
-  background: rgb(255 255 255 / 94%); color: var(--color-ink);
+  background: #fff; color: var(--color-ink);
   border-color: transparent; box-shadow: 0 4px 14px rgb(6 60 47 / 18%);
 }
+/* 濃色カードの中の白い小カードでは、項目名と補足を濃い文字に戻す
+   （.card--accent .kpi-label の白指定が効くと、白地に白文字で項目名が見えなくなる） */
+.card--accent .kpi-item .kpi-label { color: var(--color-ink); }
+.card--accent .kpi-item .kpi-label .note,
+.card--accent .kpi-item .kpi-label .hint { color: var(--color-muted); }
 .card--accent .kpi-item .kpi-sub { color: var(--color-muted); }
+/* 濃色カード上での増減表記は、淡い緑・淡いコーラルで示す（通常の緑・オレンジでは沈む） */
+.card--accent .diff-up { color: #b8f5d2; }
+.card--accent .diff-down { color: #ffdfd2; }
+.card--accent .diff-flat { color: rgb(255 255 255 / 90%); }
 .card--accent .btn:not(.btn--primary) { background: rgb(255 255 255 / 94%); }
 
 .btn {
