@@ -7,14 +7,17 @@ import {
 } from "./calc.js";
 
 // 試算（簡易シミュレーション）正式10種の計算エンジン。
-// 計算式の正本は business-tool2-2 の formulas（12の共通計算エンジン）の考え方で、
-// 業績ダイジェストの流儀（無い数字は推測で補わない、出せない結果は理由を返す）に合わせて実装し直したもの。
+// 計算式の正本は「共通計算エンジン_確定計算式一覧」（仕様設計書・個別計算定義書・
+// 実装報告を照合した確定式）であり、他の参照資料より優先する。
+// 確定式を確認できないものは、確定式として実装しない（報告の確認事項に挙げる）。
+// 共通原則（確定式一覧14章）：途中計算で丸めない／0と未入力を区別する／
+// 分母0の計算は実行しない／計算不能時に数値を補完しない。
 // 試算の入力は保存しない（その場限りの計算）。
 //
 // values の約束：
 // - 金額（kind: "amount"）は円単位の数値
 // - 割合（kind: "percent"）はパーセント値（例：15 は 15%）
-// - 件数・月数（kind: "integer"）、年数など（kind: "number"）はそのままの数値
+// - 件数・月数・日数（kind: "integer"）、年数・人数など（kind: "number"）はそのままの数値
 // - 選択（kind: "select"）は文字列
 // - 未入力は null
 
@@ -38,86 +41,74 @@ function missingReason(labels) {
 }
 
 // ---------------------------------------------------------------------------
-// 価格（pricing エンジン）
-// 売上総利益 ＝（価格 − 1単位原価）× 販売数量
+// 1. 価格（確定式一覧4章：方式A/B/C）
+// 共通の原価 C ＝ 商品・材料原価 ＋ 付随費用 ＋ その他変動費
+// 方式A：P ＝ C ÷ (1 − r)／方式B：価格変更の粗利益比較（数量は変更前後で共通）
+// 方式C：P ＝ C ＋ 目標粗利益額
 // ---------------------------------------------------------------------------
 
 function computePricing(v) {
-  const cuc = isNum(v.changedUnitCost) ? v.changedUnitCost : v.unitCost;
-  const eqty = isNum(v.expectedQuantityAfterPriceChange) ? v.expectedQuantityAfterPriceChange : v.salesQuantity;
-  const currentGP = (v.currentPrice - v.unitCost) * v.salesQuantity;
-  const afterGP = (v.changedPrice - cuc) * eqty;
+  const c = v.unitCost;
+  const q = v.salesQuantity;
+  const currentUnitGP = v.currentPrice - c;
+  const afterUnitGP = v.changedPrice - c;
+  const currentTotalGP = currentUnitGP * q;
+  const afterTotalGP = afterUnitGP * q;
 
   const results = [
-    result("今の売上総利益", "（今の価格 − 原価）× 販売数量", "yen", roundYen(currentGP)),
-    result("変更後の売上総利益", "（変更後の価格 − 原価）× 想定の販売数量", "yen", roundYen(afterGP)),
-    result("売上総利益の増減", "変更後 − 今", "diff", roundYen(afterGP - currentGP))
+    result("合計粗利益（今）", "（今の価格 − 原価）× 販売数量", "yen", roundYen(currentTotalGP)),
+    result("合計粗利益（変更後）", "（変更後の価格 − 原価）× 販売数量", "yen", roundYen(afterTotalGP)),
+    result("合計粗利益の増減", "変更後 − 今", "diff", roundYen(afterTotalGP - currentTotalGP)),
+    result("1単位の粗利益（今）", "今の価格 − 原価", "yen", roundYen(currentUnitGP)),
+    result("1単位の粗利益（変更後）", "変更後の価格 − 原価", "yen", roundYen(afterUnitGP))
   ];
 
-  const denom = v.changedPrice - v.unitCost;
-  if (currentGP <= 0) {
-    results.push(result("今の粗利益を保つのに必要な販売数量", "価格を変えたあと、今と同じ粗利益を得るために必要な個数", "count", null,
-      "今の売上総利益が0以下のため、維持に必要な数量は計算できません", "個"));
-  } else if (denom <= 0) {
-    results.push(result("今の粗利益を保つのに必要な販売数量", "価格を変えたあと、今と同じ粗利益を得るために必要な個数", "count", null,
-      "変更後価格が原価以下のため、数量を増やしても今の粗利益には届きません", "個"));
+  if (v.currentPrice !== 0 && v.changedPrice !== 0) {
+    const points = (ratio(afterUnitGP, v.changedPrice) - ratio(currentUnitGP, v.currentPrice)) * 100;
+    results.push(result("粗利益率のポイント差", "変更後の粗利益率 − 今の粗利益率", "points", points));
   } else {
-    results.push(result("今の粗利益を保つのに必要な販売数量", "価格を変えたあと、今と同じ粗利益を得るために必要な個数", "count",
-      Math.ceil(ratio(currentGP, denom)), null, "個"));
-  }
-
-  if (isNum(v.changedUnitCost)) {
-    results.push(result("原価の上昇分を反映した価格", "1単位の粗利益の額を今と同じに保つ価格", "yen",
-      roundYen(v.changedUnitCost + (v.currentPrice - v.unitCost))));
-  } else {
-    results.push(result("原価の上昇分を反映した価格", "1単位の粗利益の額を今と同じに保つ価格", "yen", null,
-      missingReason(["変更後の1単位原価"])));
+    results.push(result("粗利益率のポイント差", "変更後の粗利益率 − 今の粗利益率", "points", null,
+      "価格が0の場合は、粗利益率を計算できません"));
   }
 
   if (isNum(v.targetGrossMarginRatePercent)) {
-    results.push(result("目標の粗利益率になる価格", "原価に対して、目標の粗利益率を確保できる価格", "yen",
-      roundYen(ratio(v.unitCost, 1 - v.targetGrossMarginRatePercent / 100))));
+    results.push(result("目標粗利益率からの価格（方式A）", "原価に対して、目標の粗利益率を確保できる価格", "yen",
+      roundYen(ratio(c, 1 - v.targetGrossMarginRatePercent / 100))));
   } else {
-    results.push(result("目標の粗利益率になる価格", "原価に対して、目標の粗利益率を確保できる価格", "yen", null,
+    results.push(result("目標粗利益率からの価格（方式A）", "原価に対して、目標の粗利益率を確保できる価格", "yen", null,
       missingReason(["目標粗利益率"])));
   }
 
-  const detailKeys = ["fixedCostsExcludingLabor", "laborCosts", "otherVariableCosts", "targetOperatingProfit"];
-  const detailLabels = { fixedCostsExcludingLabor: "人件費を除く固定費", laborCosts: "人件費", otherVariableCosts: "その他変動費", targetOperatingProfit: "目標営業利益" };
-  const missingDetail = detailKeys.filter((k) => !isNum(v[k]));
-  if (missingDetail.length === 0) {
-    const price = ratio(
-      v.unitCost * v.salesQuantity + v.fixedCostsExcludingLabor + v.laborCosts + v.otherVariableCosts + v.targetOperatingProfit,
-      v.salesQuantity
-    );
-    results.push(result("目標営業利益に必要な価格", "予定の数量を売って目標の営業利益に届く価格", "yen", roundYen(price)));
+  if (isNum(v.targetGrossProfitAmount)) {
+    results.push(result("目標粗利益額からの価格（方式C）", "原価 ＋ 1単位の目標粗利益額", "yen",
+      roundYen(c + v.targetGrossProfitAmount)));
   } else {
-    results.push(result("目標営業利益に必要な価格", "予定の数量を売って目標の営業利益に届く価格", "yen", null,
-      missingReason(missingDetail.map((k) => detailLabels[k]))));
+    results.push(result("目標粗利益額からの価格（方式C）", "原価 ＋ 1単位の目標粗利益額", "yen", null,
+      missingReason(["目標粗利益額"])));
   }
 
   return {
     results,
     tables: [],
     basis: [
-      "売上総利益 ＝（価格 − 1単位原価）× 販売数量",
-      "必要な販売数量 ＝ 今の売上総利益 ÷（変更後価格 − 1単位原価）を切り上げ",
-      "原価の上昇分を反映した価格 ＝ 変更後の原価 ＋（今の価格 − 今の原価）",
-      "目標の粗利益率になる価格 ＝ 1単位原価 ÷（1 − 目標粗利益率）",
-      "目標営業利益に必要な価格 ＝（原価 × 数量 ＋ 人件費を除く固定費 ＋ 人件費 ＋ その他変動費 ＋ 目標営業利益）÷ 数量"
+      "原価 C ＝ 商品・材料原価 ＋ 付随費用 ＋ その他変動費（この試算では合計を入力します）",
+      "合計粗利益 ＝（価格 − 原価）× 販売数量（数量は変更前後で共通です）",
+      "粗利益率 ＝（価格 − 原価）÷ 価格",
+      "方式A：価格 ＝ 原価 ÷（1 − 目標粗利益率）",
+      "方式C：価格 ＝ 原価 ＋ 目標粗利益額"
     ],
-    notes: isNum(v.changedUnitCost) ? [] : ["変更後の1単位原価が未入力の項目は、今の原価のままで計算しています。"]
+    notes: []
   };
 }
 
 // ---------------------------------------------------------------------------
-// 損益分岐点（break-even エンジン）
-// 限界利益率 ＝（売上高 − 変動費）÷ 売上高、損益分岐点売上高 ＝ 固定費 ÷ 限界利益率
+// 2. 損益分岐点（確定式一覧3章：CVP）
+// 限界利益率 m ＝ 1 − 変動費率、損益分岐点売上高 ＝ 固定費 ÷ m
 // ---------------------------------------------------------------------------
 
 function marginalRate(sales, variableCosts) {
   if (!isNum(sales) || sales <= 0) return null;
-  return ratio(sales - variableCosts, sales);
+  return 1 - ratio(variableCosts, sales);
 }
 
 function computeBreakEven(v) {
@@ -133,11 +124,14 @@ function computeBreakEven(v) {
 
   if (bep !== null) {
     results.push(result("損益分岐点の売上高", "営業利益がちょうど0になる売上（赤字にならない最低限の売上）", "yen", roundYen(bep)));
+    results.push(result("損益分岐点比率", "損益分岐点の売上高が、今の売上の何割か", "percent",
+      ratio(bep, v.salesAmount)));
     results.push(result("安全余裕率", "売上が損益分岐点からどれだけ離れているか", "percent",
       ratio(v.salesAmount - bep, v.salesAmount)));
   } else {
     const reason = "限界利益率が0以下のため計算できません。変動費が売上以上になっている状態です";
     results.push(result("損益分岐点の売上高", "営業利益がちょうど0になる売上（赤字にならない最低限の売上）", "yen", null, reason));
+    results.push(result("損益分岐点比率", "損益分岐点の売上高が、今の売上の何割か", "percent", null, reason));
     results.push(result("安全余裕率", "売上が損益分岐点からどれだけ離れているか", "percent", null, reason));
   }
 
@@ -161,8 +155,9 @@ function computeBreakEven(v) {
     tables: [],
     basis: [
       "限界利益 ＝ 売上高 − 変動費",
-      "限界利益率 ＝ 限界利益 ÷ 売上高",
+      "限界利益率 ＝ 1 −（変動費 ÷ 売上高）",
       "損益分岐点の売上高 ＝ 固定費 ÷ 限界利益率",
+      "損益分岐点比率 ＝ 損益分岐点の売上高 ÷ 売上高",
       "安全余裕率 ＝（売上高 − 損益分岐点の売上高）÷ 売上高",
       "目標に必要な売上高 ＝（固定費 ＋ 目標営業利益）÷ 限界利益率"
     ],
@@ -171,153 +166,175 @@ function computeBreakEven(v) {
 }
 
 // ---------------------------------------------------------------------------
-// 人件費（labor-cost エンジン）
+// 3. 人件費（確定式一覧5章：労働分配率の方式A/B/C）
+// 方式A：現状の労働分配率／方式B：目標人件費／方式C：人件費変更比較
+// 粗利益0円では方式A・Cの分配率は算出不能。方式Bは粗利益0円でも計算できる。
 // ---------------------------------------------------------------------------
 
 function computeLabor(v) {
-  const additionalSalary = v.expectedSalaryPerPerson * v.plannedHireCount;
-  const insurance = additionalSalary * (v.socialInsuranceRatePercent / 100);
-  const additionalLabor = additionalSalary + insurance;
+  const gp = v.grossProfit;
+  const current = v.currentLaborCosts;
+  const hasHeads = isNum(v.employeeCount) && v.employeeCount > 0;
+  const shareNow = gp !== 0 ? ratio(current, gp) : null;
 
   const results = [
-    result("追加の給与（年間）", "1人当たりの想定給与 × 採用予定人数", "yen", roundYen(additionalSalary)),
-    result("社会保険料の概算（年間）", "追加の給与 × 社会保険料率（会社負担分の目安）", "yen", roundYen(insurance)),
-    result("年間追加人件費", "追加の給与と社会保険料の合計", "yen", roundYen(additionalLabor))
+    result("労働分配率（方式A）", "粗利益のうち、人件費が占める割合", "percent", shareNow,
+      gp === 0 ? "粗利益が0のため、労働分配率は計算できません" : null),
+    result("人件費控除後金額（方式A）", "粗利益 − 今の人件費", "yen", roundYen(gp - current)),
+    result("一人当たり人件費（方式A）", "今の人件費 ÷ 従業員数", "yen",
+      hasHeads ? roundYen(ratio(current, v.employeeCount)) : null,
+      isNum(v.employeeCount) ? "従業員数が0のため計算できません" : missingReason(["従業員数"]))
   ];
 
-  if (isNum(v.currentLaborCosts)) {
-    results.push(result("採用後の人件費（年間）", "今の人件費 ＋ 年間追加人件費", "yen", roundYen(v.currentLaborCosts + additionalLabor)));
+  if (isNum(v.targetLaborShareRatePercent)) {
+    const target = gp * (v.targetLaborShareRatePercent / 100);
+    results.push(result("目標人件費（方式B）", "粗利益 × 目標労働分配率", "yen", roundYen(target)));
+    results.push(result("目標人件費控除後金額（方式B）", "粗利益 − 目標人件費", "yen", roundYen(gp - target)));
+    results.push(result("目標人件費差額（方式B）", "目標人件費 − 今の人件費", "diff", roundYen(target - current)));
+    results.push(result("一人当たり目標人件費（方式B）", "目標人件費 ÷ 従業員数", "yen",
+      hasHeads ? roundYen(ratio(target, v.employeeCount)) : null,
+      isNum(v.employeeCount) ? "従業員数が0のため計算できません" : missingReason(["従業員数"])));
   } else {
-    results.push(result("採用後の人件費（年間）", "今の人件費 ＋ 年間追加人件費", "yen", null, missingReason(["今の人件費"])));
+    for (const label of ["目標人件費（方式B）", "目標人件費控除後金額（方式B）", "目標人件費差額（方式B）", "一人当たり目標人件費（方式B）"]) {
+      results.push(result(label, "", "yen", null, missingReason(["目標労働分配率"])));
+    }
   }
 
-  const rate = isNum(v.marginalProfitRatePercent) ? v.marginalProfitRatePercent / 100 : null;
-  if (rate !== null && rate > 0) {
-    results.push(result("追加人件費をまかなうのに必要な追加売上", "年間追加人件費 ÷ 限界利益率", "yen",
-      roundYen(ratio(additionalLabor, rate))));
+  if (isNum(v.changedLaborCosts)) {
+    const changed = v.changedLaborCosts;
+    const shareAfter = gp !== 0 ? ratio(changed, gp) : null;
+    results.push(result("変更後労働分配率（方式C）", "変更後の人件費 ÷ 粗利益", "percent", shareAfter,
+      gp === 0 ? "粗利益が0のため、労働分配率は計算できません" : null));
+    results.push(result("人件費差額（方式C）", "変更後の人件費 − 今の人件費", "diff", roundYen(changed - current)));
+    results.push(result("控除後金額差額（方式C）", "今の人件費 − 変更後の人件費（人件費が減ると控除後は増えます）", "diff",
+      roundYen(current - changed)));
+    results.push(result("労働分配率のポイント差（方式C）", "変更後労働分配率 − 現在労働分配率", "points",
+      shareAfter !== null && shareNow !== null ? (shareAfter - shareNow) * 100 : null,
+      gp === 0 ? "粗利益が0のため計算できません" : null));
   } else {
-    results.push(result("追加人件費をまかなうのに必要な追加売上", "年間追加人件費 ÷ 限界利益率", "yen", null,
-      isNum(v.marginalProfitRatePercent) ? "限界利益率が0のため計算できません" : missingReason(["限界利益率"])));
-  }
-
-  const needForProfit = [
-    ["currentOperatingProfit", "今の営業利益"],
-    ["expectedAdditionalSales", "採用後に見込む年間追加売上"],
-    ["marginalProfitRatePercent", "限界利益率"]
-  ];
-  const missingProfit = needForProfit.filter(([k]) => !isNum(v[k])).map(([, label]) => label);
-  if (missingProfit.length === 0) {
-    const after = v.currentOperatingProfit + v.expectedAdditionalSales * rate - additionalLabor;
-    results.push(result("採用後の営業利益", "今の営業利益 ＋ 追加売上の限界利益 − 年間追加人件費", "yen", roundYen(after)));
-  } else {
-    results.push(result("採用後の営業利益", "今の営業利益 ＋ 追加売上の限界利益 − 年間追加人件費", "yen", null,
-      missingReason(missingProfit)));
+    for (const label of ["変更後労働分配率（方式C）", "労働分配率のポイント差（方式C）"]) {
+      results.push(result(label, "", "percent", null, missingReason(["変更後の人件費"])));
+    }
+    for (const label of ["人件費差額（方式C）", "控除後金額差額（方式C）"]) {
+      results.push(result(label, "", "diff", null, missingReason(["変更後の人件費"])));
+    }
   }
 
   return {
     results,
     tables: [],
     basis: [
-      "追加の給与 ＝ 1人当たりの想定給与 × 採用予定人数",
-      "社会保険料の概算 ＝ 追加の給与 × 社会保険料率",
-      "採用後の営業利益 ＝ 今の営業利益 ＋（追加売上 × 限界利益率）− 年間追加人件費"
+      "労働分配率 ＝ 人件費 ÷ 粗利益",
+      "人件費控除後金額 ＝ 粗利益 − 人件費",
+      "目標人件費 ＝ 粗利益 × 目標労働分配率",
+      "一人当たり人件費 ＝ 人件費 ÷ 従業員数"
     ],
-    notes: ["社会保険料率は概算です。実際の料率は、加入する保険や地域によって変わります。"]
+    notes: ["割合の目安は業種や会社の状況によって大きく違います。ここでは数字だけを示し、良い・悪いの判定はしません。"]
   };
 }
 
 // ---------------------------------------------------------------------------
-// 借入返済（loan-repayment エンジン）
-// 元利均等：毎月の返済額は一定。元金均等：毎月の元金が一定。
+// 4. 借入返済（確定式一覧7章：返済予定表定義）
+// 月利 i ＝ 年利 ÷ 12。元利均等／元金均等。繰上返済は通常返済と別行で計算し、
+// 期間短縮型と返済額軽減型に対応する。途中計算では丸めない。
 // ---------------------------------------------------------------------------
 
-function equalPaymentAmount(loanAmount, annualRate, months) {
-  const monthlyRate = annualRate / 12;
-  if (monthlyRate === 0) return loanAmount / months;
-  const factor = (1 + monthlyRate) ** months;
-  return (loanAmount * monthlyRate * factor) / (factor - 1);
+function equalPaymentAmount(balance, annualRate, months) {
+  const i = annualRate / 12;
+  if (i === 0) return balance / months;
+  const factor = (1 + i) ** months;
+  return (balance * i * factor) / (factor - 1);
 }
 
-function buildSchedule(loanAmount, annualRate, months, method) {
-  const monthlyRate = annualRate / 12;
-  const regularPayment = method === "EQUAL_PAYMENT"
-    ? roundYen(equalPaymentAmount(loanAmount, annualRate, months))
-    : null;
-  const regularPrincipal = method === "EQUAL_PRINCIPAL" ? roundYen(loanAmount / months) : null;
-  const schedule = [];
-  let balance = loanAmount;
-  for (let month = 1; month <= months; month += 1) {
-    const interest = roundYen(balance * monthlyRate);
-    const isLast = month === months;
+function hasPrepayment(v) {
+  return isNum(v.prepaymentAmount) && isNum(v.prepaymentMonth)
+    && typeof v.prepaymentType === "string" && v.prepaymentType !== "";
+}
+
+// 返済予定表を作る。繰上返済がある月は、通常返済のあとに別行を足す。
+function buildSchedule(v) {
+  const annualRate = v.interestRatePercent / 100;
+  const i = annualRate / 12;
+  const method = v.repaymentMethod;
+  const hasPrepay = hasPrepayment(v);
+  const rows = [];
+  let balance = v.loanAmount;
+  let regularPayment = method === "EQUAL_PAYMENT" ? equalPaymentAmount(balance, annualRate, v.repaymentMonths) : null;
+  let regularPrincipal = method === "EQUAL_PRINCIPAL" ? balance / v.repaymentMonths : null;
+
+  for (let month = 1; month <= v.repaymentMonths && balance > 0; month += 1) {
+    const interest = balance * i;
+    const isLast = month === v.repaymentMonths;
     let principal;
     if (method === "EQUAL_PAYMENT") {
       principal = isLast ? balance : Math.min(balance, Math.max(0, regularPayment - interest));
+      if (principal <= 0) principal = balance;
     } else {
       principal = isLast ? balance : Math.min(balance, regularPrincipal);
     }
     const payment = principal + interest;
     balance = Math.max(0, balance - principal);
-    schedule.push({ month, principal, interest, payment, balance });
+    rows.push({ month, label: null, principal, interest, payment, balance });
+
+    if (hasPrepay && month === v.prepaymentMonth && balance > 0) {
+      const extra = Math.min(v.prepaymentAmount, balance);
+      balance -= extra;
+      rows.push({ month, label: `${month}か月目（繰上返済）`, principal: extra, interest: 0, payment: extra, balance });
+      if (balance > 0 && v.prepaymentType === "PAYMENT_REDUCE") {
+        const remaining = v.repaymentMonths - month;
+        if (remaining > 0) {
+          if (method === "EQUAL_PAYMENT") regularPayment = equalPaymentAmount(balance, annualRate, remaining);
+          else regularPrincipal = balance / remaining;
+        }
+      }
+    }
   }
-  return schedule;
+  return rows;
 }
 
 function computeLoan(v) {
-  const annualRate = v.interestRatePercent / 100;
-  const schedule = buildSchedule(v.loanAmount, annualRate, v.repaymentMonths, v.repaymentMethod);
-  const annualPayment = schedule.slice(0, 12).reduce((s, row) => s + row.payment, 0);
+  const schedule = buildSchedule(v);
+  const firstYearRows = schedule.filter((row) => row.month <= 12);
+  const annualPayment = firstYearRows.reduce((s, row) => s + row.payment, 0);
   const totalPayment = schedule.reduce((s, row) => s + row.payment, 0);
   const totalInterest = schedule.reduce((s, row) => s + row.interest, 0);
+  const hasPrepay = hasPrepayment(v);
 
   const results = [
-    result("毎月の返済額（初回）", v.repaymentMethod === "EQUAL_PAYMENT" ? "元利均等では、毎月ほぼ同じ額です" : "元金均等では、初回が最も大きく、少しずつ減ります", "yen", schedule[0]?.payment ?? null),
-    result("年間返済額", "最初の12か月分の返済額の合計", "yen", annualPayment),
-    result("返済総額", "返済期間全体の返済額の合計", "yen", totalPayment),
-    result("利息の総額", "返済総額のうち、利息の部分", "yen", totalInterest)
+    result("毎月の返済額（初回）", v.repaymentMethod === "EQUAL_PAYMENT" ? "元利均等では、毎月ほぼ同じ額です" : "元金均等では、初回が最も大きく、少しずつ減ります", "yen",
+      schedule.length ? roundYen(schedule[0].payment) : null),
+    result("年間返済額", "予定表の最初の12回分の合計（繰上返済を含みます）", "yen", roundYen(annualPayment)),
+    result("返済総額", "返済期間全体の返済額の合計", "yen", roundYen(totalPayment)),
+    result("利息の総額", "返済総額のうち、利息の部分", "yen", roundYen(totalInterest))
   ];
 
-  if (isNum(v.annualPreDebtServiceCashFlow)) {
+  if (hasPrepay) {
+    results.push(result("実際の返済回数", "繰上返済によって変わった、実際の返済の回数", "count",
+      schedule.filter((row) => !row.label).length, null, "回"));
+  }
+
+  if (isNum(v.annualCashFlow)) {
     if (annualPayment > 0) {
-      results.push(result("年間返済額に対するキャッシュ倍率", "返済に使える年間のお金が、年間返済額の何倍あるか", "times",
-        ratio(v.annualPreDebtServiceCashFlow, annualPayment)));
+      results.push(result("債務返済余裕倍率（DSCR）", "年間キャッシュフローが、年間返済額の何倍あるか", "times",
+        ratio(v.annualCashFlow, annualPayment)));
     } else {
-      results.push(result("年間返済額に対するキャッシュ倍率", "返済に使える年間のお金が、年間返済額の何倍あるか", "times", null,
+      results.push(result("債務返済余裕倍率（DSCR）", "年間キャッシュフローが、年間返済額の何倍あるか", "times", null,
         "年間返済額が0のため計算できません"));
     }
   } else {
-    results.push(result("年間返済額に対するキャッシュ倍率", "返済に使える年間のお金が、年間返済額の何倍あるか", "times", null,
-      missingReason(["年間返済前キャッシュフロー"])));
+    results.push(result("債務返済余裕倍率（DSCR）", "年間キャッシュフローが、年間返済額の何倍あるか", "times", null,
+      missingReason(["年間キャッシュフロー"])));
   }
 
-  const debtKeys = [
-    ["shortTermBorrowings", "短期借入金"],
-    ["longTermBorrowings", "長期借入金"],
-    ["operatingProfit", "営業利益"],
-    ["depreciation", "減価償却費"]
-  ];
-  const missingDebt = debtKeys.filter(([k]) => !isNum(v[k])).map(([, label]) => label);
-  if (missingDebt.length === 0) {
-    const totalDebt = v.shortTermBorrowings + v.longTermBorrowings;
-    const repaymentCash = v.operatingProfit + v.depreciation;
-    if (repaymentCash > 0) {
-      results.push(result("簡易債務償還年数", "今の利益と減価償却費で、借入金を返すのにかかる年数の目安", "years",
-        ratio(totalDebt, repaymentCash)));
-    } else {
-      results.push(result("簡易債務償還年数", "今の利益と減価償却費で、借入金を返すのにかかる年数の目安", "years", null,
-        "営業利益と減価償却費の合計が0以下のため計算できません"));
-    }
-  } else {
-    results.push(result("簡易債務償還年数", "今の利益と減価償却費で、借入金を返すのにかかる年数の目安", "years", null,
-      missingReason(missingDebt)));
-  }
-
-  const rows = schedule.slice(0, 12).map((row) => [row.month, row.principal, row.interest, row.payment, row.balance]);
+  const rows = schedule
+    .filter((row) => row.month <= 12)
+    .map((row) => [row.label ?? row.month, row.principal, row.interest, row.payment, row.balance]);
   return {
     results,
     tables: [{
-      title: v.repaymentMonths > 12 ? "返済表（最初の12か月）" : "返済表",
+      title: "返済表（最初の12か月）",
       columns: [
-        { label: "月", format: "month" },
+        { label: "月", format: "monthLabel" },
         { label: "元金", format: "yen" },
         { label: "利息", format: "yen" },
         { label: "返済額", format: "yen" },
@@ -326,157 +343,185 @@ function computeLoan(v) {
       rows
     }],
     basis: [
-      "元利均等：毎月の返済額を一定にする方式。利息は、その月の残高 ×（年利 ÷ 12）",
-      "元金均等：毎月の元金を一定にする方式。利息は、その月の残高 ×（年利 ÷ 12）",
-      "キャッシュ倍率 ＝ 年間返済前キャッシュフロー ÷ 年間返済額",
-      "簡易債務償還年数 ＝（短期借入金 ＋ 長期借入金）÷（営業利益 ＋ 減価償却費）"
+      "月利 ＝ 年利 ÷ 12",
+      "元利均等：毎月の返済額を一定にする方式。利息は、その月の残高 × 月利",
+      "元金均等：毎月の元金を一定にする方式。利息は、その月の残高 × 月利",
+      "年間返済額 ＝ 予定表の先頭12回分の合計（毎月額の単純な12倍ではありません）",
+      "債務返済余裕倍率（DSCR）＝ 年間キャッシュフロー ÷ 年間返済額",
+      "繰上返済は通常返済とは別に計算します。期間短縮型は返済額を変えずに期間を短くし、返済額軽減型は残高と残り回数から返済額を計算し直します"
     ],
-    notes: ["利息は月割りで計算した概算です。実際の返済額は、金融機関の計算（日割りなど）と少し違う場合があります。"]
+    notes: ["利息は月利で計算した概算です。実際の返済額は、金融機関の計算（日割りなど）と少し違う場合があります。"]
   };
 }
 
 // ---------------------------------------------------------------------------
-// 投資回収・利回り（investment-return エンジン）
+// 5. 投資回収・利回り（確定式一覧8章B：後続の年間利益ベース）
+// 年間利益 Y ＝ 年間収入 − 年間経費、回収年数 ＝ 投資額 ÷ Y、
+// 回収月数 ＝ round（回収年数 × 12）、年間利回り ＝ Y ÷ 投資額
+// 年間経費が未入力の場合は0円として扱う。Y が0以下の場合は回収期間を算出しない。
 // ---------------------------------------------------------------------------
 
 function computeInvestment(v) {
-  const running = isNum(v.annualRunningCost) ? v.annualRunningCost : 0;
-  const results = [];
+  const expense = isNum(v.annualExpense) ? v.annualExpense : 0;
+  const y = v.annualRevenue - expense;
+  const results = [
+    result("年間利益", "年間収入 − 年間経費", "yen", roundYen(y))
+  ];
 
-  if (isNum(v.annualIncrementalCashFlow)) {
-    if (v.annualIncrementalCashFlow > 0) {
-      results.push(result("回収年数", "投資額 ÷ 年間増分キャッシュフロー", "years",
-        ratio(v.investmentAmount, v.annualIncrementalCashFlow)));
-    } else {
-      results.push(result("回収年数", "投資額 ÷ 年間増分キャッシュフロー", "years", null,
-        "年間増分キャッシュフローが0のため、回収年数は計算できません"));
-    }
+  if (y > 0) {
+    const years = ratio(v.investmentAmount, y);
+    results.push(result("投資回収年数", "投資額 ÷ 年間利益", "years", years));
+    results.push(result("投資回収月数", "回収年数 × 12（四捨五入）", "months", Math.round(years * 12)));
   } else {
-    results.push(result("回収年数", "投資額 ÷ 年間増分キャッシュフロー", "years", null,
-      missingReason(["年間増分キャッシュフロー"])));
+    const reason = "年間利益が0以下のため、回収期間は表示されません";
+    results.push(result("投資回収年数", "投資額 ÷ 年間利益", "years", null, reason));
+    results.push(result("投資回収月数", "回収年数 × 12（四捨五入）", "months", null, reason));
   }
 
-  const hasBeforeAfter = isNum(v.annualOperatingProfitBeforeInvestment) && isNum(v.annualOperatingProfitAfterInvestment);
-  let incrementalProfit = null;
-  if (hasBeforeAfter) {
-    incrementalProfit = v.annualOperatingProfitAfterInvestment - v.annualOperatingProfitBeforeInvestment - running;
-    results.push(result("増分営業利益（年間）", "投資後の営業利益 − 投資前の営業利益 − ランニングコスト", "yen", roundYen(incrementalProfit)));
-  } else {
-    results.push(result("増分営業利益（年間）", "投資後の営業利益 − 投資前の営業利益 − ランニングコスト", "yen", null,
-      missingReason([
-        ...(!isNum(v.annualOperatingProfitBeforeInvestment) ? ["投資前の年間営業利益"] : []),
-        ...(!isNum(v.annualOperatingProfitAfterInvestment) ? ["投資後の年間営業利益"] : [])
-      ])));
-  }
-
-  if (incrementalProfit !== null) {
-    if (v.investmentAmount > 0) {
-      results.push(result("利回り（年間増分営業利益率）", "増分営業利益 ÷ 投資額", "percent",
-        ratio(incrementalProfit, v.investmentAmount)));
-    } else {
-      results.push(result("利回り（年間増分営業利益率）", "増分営業利益 ÷ 投資額", "percent", null,
-        "投資額が0のため計算できません"));
-    }
-  } else {
-    results.push(result("利回り（年間増分営業利益率）", "増分営業利益 ÷ 投資額", "percent", null,
-      "増分営業利益が計算できると表示されます"));
-  }
-
-  if (isNum(v.targetPaybackYears)) {
-    results.push(result("目標年数で回収するために必要な年間営業利益", "投資額 ÷ 目標回収年数", "yen",
-      roundYen(ratio(v.investmentAmount, v.targetPaybackYears))));
-  } else {
-    results.push(result("目標年数で回収するために必要な年間営業利益", "投資額 ÷ 目標回収年数", "yen", null,
-      missingReason(["目標回収年数"])));
-  }
+  results.push(result("年間利回り", "年間利益 ÷ 投資額", "percent", ratio(y, v.investmentAmount)));
 
   return {
     results,
     tables: [],
     basis: [
-      "回収年数 ＝ 投資額 ÷ 年間増分キャッシュフロー",
-      "増分営業利益 ＝ 投資後の年間営業利益 − 投資前の年間営業利益 − 年間ランニングコスト",
-      "利回り ＝ 増分営業利益 ÷ 投資額"
+      "年間利益 ＝ 年間収入 − 年間経費（経費が未入力の場合は0円として計算します）",
+      "投資回収年数 ＝ 投資額 ÷ 年間利益",
+      "投資回収月数 ＝ 回収年数 × 12（四捨五入）",
+      "年間利回り ＝ 年間利益 ÷ 投資額"
     ],
-    notes: ["増分キャッシュフローと増分営業利益は別の数字です。回収年数はお金の増え方、利回りは利益の増え方で見ます。"]
+    notes: ["回収年数と利回りは、キャッシュフローではなく年間の利益（収入から経費を引いた額）をもとに計算しています。"]
   };
 }
 
 // ---------------------------------------------------------------------------
-// 資金繰り（cash-flow エンジン、簡易の目安）
+// 6. 資金繰り（確定式一覧6章B：日別資金繰り）
+// 日別入出金差額 Dt ＝ 当日入金 − 当日支出、日別残高 Bt ＝ B(t-1) ＋ Dt
+// 残高が0円の日は不足日に含めない。
 // ---------------------------------------------------------------------------
 
 function computeCashFlow(v) {
-  const loanPayment = isNum(v.monthlyLoanPayment) ? v.monthlyLoanPayment : 0;
-  const netOutflow = v.monthlyCashOut + loanPayment - v.monthlyCashIn;
-  const months = isNum(v.projectionMonths) ? v.projectionMonths : 6;
-
-  const results = [
-    result("1か月の純減額（目安）", "キャッシュアウト ＋ 返済支出 − キャッシュイン", "yen", roundYen(netOutflow))
-  ];
-  if (netOutflow > 0) {
-    results.push(result("資金余命（目安）", "今の現預金 ÷ 1か月の純減額。今の収支が続いた場合に、何か月で現預金が尽きるか", "months",
-      ratio(v.cashBalance, netOutflow)));
-  } else {
-    results.push(result("資金余命（目安）", "今の現預金 ÷ 1か月の純減額", "months", null,
-      "今の収支では現預金は減らない計算のため、余命は表示されません"));
+  const days = v.periodDays;
+  const specials = [];
+  for (const prefix of ["specialIn", "specialOut"]) {
+    for (const n of [1, 2]) {
+      const day = v[`${prefix}Day${n}`];
+      const amount = v[`${prefix}Amount${n}`];
+      if (isNum(day) && isNum(amount)) {
+        specials.push({ day, inAmount: prefix === "specialIn" ? amount : 0, outAmount: prefix === "specialOut" ? amount : 0 });
+      }
+    }
   }
 
+  let balance = v.cashBalance;
+  let minBalance = null;
+  let minDay = null;
+  let firstShortageDay = null;
+  let negativeDays = 0;
+  let totalIn = 0;
+  let totalOut = 0;
   const rows = [];
-  for (let m = 1; m <= months; m += 1) {
-    rows.push([m, roundYen(v.cashBalance - netOutflow * m)]);
+  for (let d = 1; d <= days; d += 1) {
+    let inAmount = v.dailyCashIn;
+    let outAmount = v.dailyCashOut;
+    for (const s of specials) {
+      if (s.day === d) { inAmount += s.inAmount; outAmount += s.outAmount; }
+    }
+    balance += inAmount - outAmount;
+    totalIn += inAmount;
+    totalOut += outAmount;
+    if (minBalance === null || balance < minBalance) { minBalance = balance; minDay = d; }
+    if (balance < 0) {
+      negativeDays += 1;
+      if (firstShortageDay === null) firstShortageDay = d;
+    }
+    rows.push([d, inAmount, outAmount, balance]);
+  }
+
+  const results = [
+    result("期間末残高", "開始残高に、期間中の入出金を反映した残高", "yen", roundYen(balance)),
+    result("期間中の最低残高", `${minDay}日目の残高が最も低くなります`, "yen", roundYen(minBalance)),
+    result("最初の残高不足日", "残高が初めてマイナスになる日（残高0円の日は含みません）", "day",
+      firstShortageDay, "期間中に残高がマイナスになる日はありません"),
+    result("残高がマイナスになる日数", "期間のうち、残高が0円未満になる日の数", "count", negativeDays, null, "日"),
+    result("期間の収支", "期間中の入金合計 − 支出合計", "diff", roundYen(totalIn - totalOut))
+  ];
+
+  if (isNum(v.minimumCashBalance)) {
+    results.push(result("最低維持資金との差額", "期間中の最低残高 − 最低維持資金", "diff",
+      roundYen(minBalance - v.minimumCashBalance)));
+  } else {
+    results.push(result("最低維持資金との差額", "期間中の最低残高 − 最低維持資金", "diff", null,
+      missingReason(["最低維持資金"])));
   }
 
   return {
     results,
     tables: [{
-      title: `現預金の残高の推移（目安、${months}か月）`,
+      title: "日別の残高推移",
       columns: [
-        { label: "経過月", format: "month" },
-        { label: "残高（目安）", format: "yen" }
+        { label: "日", format: "day" },
+        { label: "入金", format: "yen" },
+        { label: "支出", format: "yen" },
+        { label: "残高", format: "yen" }
       ],
       rows
     }],
     basis: [
-      "1か月の純減額 ＝ 月間キャッシュアウト ＋ 月間返済支出 − 月間キャッシュイン",
-      "資金余命 ＝ 現在の現預金 ÷ 1か月の純減額",
-      "残高（目安）＝ 現在の現預金 − 1か月の純減額 × 経過月"
+      "その日の差額 ＝ その日の入金 − その日の支出",
+      "その日の残高 ＝ 前日の残高 ＋ その日の差額（同日の入金と支出は合算して反映します）",
+      "期間の収支 ＝ 期間中の入金合計 − 支出合計",
+      "最低維持資金との差額 ＝ 期間中の最低残高 − 最低維持資金"
     ],
-    notes: ["入力した月の収支が、そのまま続くという仮定の目安です。実際の入出金の時期によって変わります。将来の予測ではなく、目安として見てください。"]
+    notes: ["入力した入出金の予定どおりに進むという仮定の試算です。入力は保存されません。"]
   };
 }
 
 // ---------------------------------------------------------------------------
-// 財務健全性・収益性比率（financial-analysis エンジン）
+// 7. 財務健全性（確定式一覧9章：対象7指標）
+// 確定式が直接確認できたのは自己資本比率のみ。他の6指標は一般的な定義式で
+// 計算する（確定式の照合待ちであることは、報告の確認事項に挙げる）。
 // ---------------------------------------------------------------------------
 
 function computeSoundness(v) {
+  const need = (keys, labels) => missingReason(keys.filter((k, idx) => !isNum(v[k])).map((k) => labels[k]));
+  const labels = {
+    currentAssets: "流動資産", fixedAssets: "固定資産", totalAssets: "資産合計",
+    currentLiabilities: "流動負債", totalLiabilities: "負債合計", netAssets: "純資産",
+    quickAssets: "当座資産", fixedLiabilities: "固定負債"
+  };
+  const ratioOrNull = (label, hint, numeratorKey, denominatorKeys, computeFn, zeroReason) => {
+    const missing = denominatorKeys.concat(numeratorKey).filter((k) => !isNum(v[k]));
+    if (missing.length > 0) return result(label, hint, "percent", null, missingReason(missing.map((k) => labels[k])));
+    const value = computeFn();
+    return result(label, hint, "percent", value, value === null ? zeroReason : null);
+  };
+
   const results = [
-    result("自己資本比率", "資産合計のうち、返さなくてよいお金（純資産）の割合", "percent",
-      isNum(v.netAssets) && isNum(v.totalAssets) && v.totalAssets !== 0 ? ratio(v.netAssets, v.totalAssets) : null,
-      !isNum(v.netAssets) || !isNum(v.totalAssets) ? missingReason([
-        ...(!isNum(v.netAssets) ? ["純資産"] : []), ...(!isNum(v.totalAssets) ? ["資産合計"] : [])
-      ]) : "資産合計が0のため計算できません"),
-    result("流動比率", "1年以内の負債に対して、1年以内の資産がどれだけあるか", "percent",
-      isNum(v.currentAssets) && isNum(v.currentLiabilities) && v.currentLiabilities !== 0 ? ratio(v.currentAssets, v.currentLiabilities) : null,
-      !isNum(v.currentAssets) || !isNum(v.currentLiabilities) ? missingReason([
-        ...(!isNum(v.currentAssets) ? ["流動資産"] : []), ...(!isNum(v.currentLiabilities) ? ["流動負債"] : [])
-      ]) : "流動負債が0のため計算できません"),
-    result("固定比率", "固定資産が純資産の何倍あるか", "percent",
-      isNum(v.fixedAssets) && isNum(v.netAssets) && v.netAssets !== 0 ? ratio(v.fixedAssets, v.netAssets) : null,
-      !isNum(v.fixedAssets) || !isNum(v.netAssets) ? missingReason([
-        ...(!isNum(v.fixedAssets) ? ["固定資産"] : []), ...(!isNum(v.netAssets) ? ["純資産"] : [])
-      ]) : "純資産が0のため計算できません"),
-    result("負債比率", "負債合計が純資産の何倍あるか", "percent",
-      isNum(v.totalLiabilities) && isNum(v.netAssets) && v.netAssets !== 0 ? ratio(v.totalLiabilities, v.netAssets) : null,
-      !isNum(v.totalLiabilities) || !isNum(v.netAssets) ? missingReason([
-        ...(!isNum(v.totalLiabilities) ? ["負債合計"] : []), ...(!isNum(v.netAssets) ? ["純資産"] : [])
-      ]) : "純資産が0のため計算できません"),
+    ratioOrNull("自己資本比率", "資産合計のうち、返さなくてよいお金（純資産）の割合", "netAssets",
+      ["totalAssets"], () => (v.totalAssets !== 0 ? ratio(v.netAssets, v.totalAssets) : null),
+      "資産合計が0のため計算できません"),
+    ratioOrNull("流動比率", "1年以内の負債に対して、1年以内の資産がどれだけあるか", "currentAssets",
+      ["currentLiabilities"], () => (v.currentLiabilities !== 0 ? ratio(v.currentAssets, v.currentLiabilities) : null),
+      "流動負債が0のため計算できません"),
+    ratioOrNull("当座比率", "1年以内の負債に対して、すぐに現金化できる資産（当座資産）がどれだけあるか", "quickAssets",
+      ["currentLiabilities"], () => (v.currentLiabilities !== 0 ? ratio(v.quickAssets, v.currentLiabilities) : null),
+      "流動負債が0のため計算できません"),
+    ratioOrNull("固定比率", "固定資産が純資産の何倍あるか", "fixedAssets",
+      ["netAssets"], () => (v.netAssets !== 0 ? ratio(v.fixedAssets, v.netAssets) : null),
+      "純資産が0のため計算できません"),
+    result("固定長期適合率", "固定資産が、純資産と固定負債の合計の何割か",
+      "percent",
+      isNum(v.fixedAssets) && isNum(v.netAssets) && isNum(v.fixedLiabilities) && (v.netAssets + v.fixedLiabilities) !== 0
+        ? ratio(v.fixedAssets, v.netAssets + v.fixedLiabilities) : null,
+      !isNum(v.fixedAssets) || !isNum(v.netAssets) || !isNum(v.fixedLiabilities)
+        ? need(["fixedAssets", "netAssets", "fixedLiabilities"], labels)
+        : "純資産と固定負債の合計が0のため計算できません"),
+    ratioOrNull("負債比率", "負債合計が純資産の何倍あるか", "totalLiabilities",
+      ["netAssets"], () => (v.netAssets !== 0 ? ratio(v.totalLiabilities, v.netAssets) : null),
+      "純資産が0のため計算できません"),
     result("運転資本", "流動資産 − 流動負債。日々の運転に回せるお金の目安", "yen",
       isNum(v.currentAssets) && isNum(v.currentLiabilities) ? roundYen(v.currentAssets - v.currentLiabilities) : null,
-      missingReason([
-        ...(!isNum(v.currentAssets) ? ["流動資産"] : []), ...(!isNum(v.currentLiabilities) ? ["流動負債"] : [])
-      ]))
+      need(["currentAssets", "currentLiabilities"], labels))
   ];
   return {
     results,
@@ -484,13 +529,21 @@ function computeSoundness(v) {
     basis: [
       "自己資本比率 ＝ 純資産 ÷ 資産合計",
       "流動比率 ＝ 流動資産 ÷ 流動負債",
+      "当座比率 ＝ 当座資産 ÷ 流動負債",
       "固定比率 ＝ 固定資産 ÷ 純資産",
+      "固定長期適合率 ＝ 固定資産 ÷（純資産 ＋ 固定負債）",
       "負債比率 ＝ 負債合計 ÷ 純資産",
       "運転資本 ＝ 流動資産 − 流動負債"
     ],
     notes: ["割合の目安は業種によって大きく違います。ここでは数字だけを示し、良い・悪いの判定はしません。"]
   };
 }
+
+// ---------------------------------------------------------------------------
+// 8. 収益性比率（確定式一覧9章：4種類の利益率＋ROA＋必要利益）
+// 各利益率 ＝ 対象利益 ÷ 売上高。ROA ＝ 経常利益 ÷ 総資産（初期確定式）。
+// 必要利益 ＝ 売上高 × 目標利益率、追加利益 ＝ max(0, 必要利益 − 現在利益)
+// ---------------------------------------------------------------------------
 
 function computeProfitability(v) {
   const margin = (label, hint, profitKey, profitLabel) => result(label, hint, "percent",
@@ -500,90 +553,89 @@ function computeProfitability(v) {
     ]) : "売上高が0のため計算できません");
 
   const results = [
+    margin("売上高総利益率", "売上に対して、売上総利益（粗利益）がどれだけ残るか", "grossProfit", "売上総利益"),
     margin("売上高営業利益率", "売上に対して、本業の利益がどれだけ残るか", "operatingProfit", "営業利益"),
     margin("売上高経常利益率", "売上に対して、通常の活動全体の利益がどれだけ残るか", "ordinaryProfit", "経常利益"),
     margin("売上高当期純利益率", "売上に対して、最終利益がどれだけ残るか", "netProfit", "当期純利益"),
-    result("総資産当期純利益率（ROA）", "資産合計に対して、最終利益がどれだけ生まれたか", "percent",
-      isNum(v.netProfit) && isNum(v.totalAssets) && v.totalAssets !== 0 ? ratio(v.netProfit, v.totalAssets) : null,
-      !isNum(v.netProfit) || !isNum(v.totalAssets) ? missingReason([
-        ...(!isNum(v.netProfit) ? ["当期純利益"] : []), ...(!isNum(v.totalAssets) ? ["資産合計"] : [])
-      ]) : "資産合計が0のため計算できません"),
-    result("自己資本当期純利益率（ROE）", "純資産に対して、最終利益がどれだけ生まれたか", "percent",
-      isNum(v.netProfit) && isNum(v.netAssets) && v.netAssets !== 0 ? ratio(v.netProfit, v.netAssets) : null,
-      !isNum(v.netProfit) || !isNum(v.netAssets) ? missingReason([
-        ...(!isNum(v.netProfit) ? ["当期純利益"] : []), ...(!isNum(v.netAssets) ? ["純資産"] : [])
-      ]) : "純資産が0のため計算できません"),
-    result("総資産回転率", "資産合計に対して、売上が何倍あるか（資産の使い方の目安）", "times",
-      isNum(v.salesAmount) && isNum(v.totalAssets) && v.totalAssets !== 0 ? ratio(v.salesAmount, v.totalAssets) : null,
-      !isNum(v.salesAmount) || !isNum(v.totalAssets) ? missingReason([
-        ...(!isNum(v.salesAmount) ? ["売上高"] : []), ...(!isNum(v.totalAssets) ? ["資産合計"] : [])
+    result("総資産経常利益率（ROA）", "資産合計に対して、経常利益がどれだけ生まれたか", "percent",
+      isNum(v.ordinaryProfit) && isNum(v.totalAssets) && v.totalAssets !== 0 ? ratio(v.ordinaryProfit, v.totalAssets) : null,
+      !isNum(v.ordinaryProfit) || !isNum(v.totalAssets) ? missingReason([
+        ...(!isNum(v.ordinaryProfit) ? ["経常利益"] : []), ...(!isNum(v.totalAssets) ? ["資産合計"] : [])
       ]) : "資産合計が0のため計算できません")
   ];
+
+  if (isNum(v.targetOrdinaryMarginRatePercent)) {
+    if (isNum(v.salesAmount)) {
+      const required = v.salesAmount * (v.targetOrdinaryMarginRatePercent / 100);
+      results.push(result("目標の経常利益率に必要な経常利益", "売上高 × 目標経常利益率", "yen", roundYen(required)));
+      if (isNum(v.ordinaryProfit)) {
+        results.push(result("追加で必要な経常利益", "必要な経常利益 − 今の経常利益（すでに届いている場合は0）", "yen",
+          roundYen(Math.max(0, required - v.ordinaryProfit))));
+      } else {
+        results.push(result("追加で必要な経常利益", "必要な経常利益 − 今の経常利益", "yen", null,
+          missingReason(["経常利益"])));
+      }
+    } else {
+      results.push(result("目標の経常利益率に必要な経常利益", "売上高 × 目標経常利益率", "yen", null,
+        missingReason(["売上高"])));
+      results.push(result("追加で必要な経常利益", "必要な経常利益 − 今の経常利益", "yen", null,
+        missingReason(["売上高"])));
+    }
+  } else {
+    results.push(result("目標の経常利益率に必要な経常利益", "売上高 × 目標経常利益率", "yen", null,
+      missingReason(["目標経常利益率"])));
+    results.push(result("追加で必要な経常利益", "必要な経常利益 − 今の経常利益", "yen", null,
+      missingReason(["目標経常利益率"])));
+  }
+
   return {
     results,
     tables: [],
     basis: [
       "売上高○○利益率 ＝ 各利益 ÷ 売上高",
-      "総資産当期純利益率 ＝ 当期純利益 ÷ 資産合計",
-      "自己資本当期純利益率 ＝ 当期純利益 ÷ 純資産",
-      "総資産回転率 ＝ 売上高 ÷ 資産合計"
+      "総資産経常利益率（ROA）＝ 経常利益 ÷ 資産合計",
+      "必要な経常利益 ＝ 売上高 × 目標経常利益率",
+      "追加で必要な経常利益 ＝ max(0, 必要な経常利益 − 今の経常利益)"
     ],
     notes: ["割合の目安は業種によって大きく違います。ここでは数字だけを示し、良い・悪いの判定はしません。"]
   };
 }
 
 // ---------------------------------------------------------------------------
-// 成長率（growth エンジン、比較を含む）
-// 年平均成長率の年数は、期末日の実日数（ACT/ACT）で数える。
+// 9. 成長率（確定式一覧11章：基本式とその条件）
+// 増減額 ΔX ＝ X当期 − X前期
+// 売上高成長率：前期売上高が0の場合は算出しない
+// 経常利益成長率：前期・当期とも正数の場合のみ算出（赤字・黒字転換は増減額で見る）
+// 目標利益成長率からの逆算は、確定式を再現できないため実装しない。
 // ---------------------------------------------------------------------------
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function utcDate(value) {
-  const [year, month, day] = String(value).split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-function anniversary(source, yearOffset) {
-  const year = source.getUTCFullYear() + yearOffset;
-  const month = source.getUTCMonth();
-  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(source.getUTCDate(), lastDay)));
-}
-
-export function elapsedYearsActAct(sourcePeriodEnd, targetPeriodEnd) {
-  const source = utcDate(sourcePeriodEnd);
-  const target = utcDate(targetPeriodEnd);
-  let fullYears = target.getUTCFullYear() - source.getUTCFullYear();
-  if (anniversary(source, fullYears) > target) fullYears -= 1;
-  const currentAnniversary = anniversary(source, fullYears);
-  const nextAnniversary = anniversary(source, fullYears + 1);
-  const remainingDays = (target - currentAnniversary) / DAY_MS;
-  const intervalDays = (nextAnniversary - currentAnniversary) / DAY_MS;
-  return fullYears + remainingDays / intervalDays;
-}
 
 function computeGrowth(v) {
   const results = [
-    result("増減額", "今期の金額 − 前期の金額", "diff", roundYen(v.currentValue - v.previousValue)),
-    result("成長率", "増減額 ÷ 前期の金額", "percent",
-      v.previousValue !== 0 ? ratio(v.currentValue - v.previousValue, v.previousValue) : null,
-      "前期の金額が0のため、成長率は計算できません")
+    result("売上高の増減額", "今期の売上高 − 前期の売上高", "diff", roundYen(v.currentSalesAmount - v.previousSalesAmount)),
+    result("売上高成長率", "増減額 ÷ 前期の売上高", "percent",
+      v.previousSalesAmount !== 0 ? ratio(v.currentSalesAmount - v.previousSalesAmount, v.previousSalesAmount) : null,
+      "前期の売上高が0のため、成長率は表示されません")
   ];
 
-  const cagrKeys = [["initialValue", "最初の金額"], ["finalValue", "最後の金額"], ["years", "年数"]];
-  const missingCagr = cagrKeys.filter(([k]) => !isNum(v[k])).map(([, label]) => label);
-  if (missingCagr.length === 0) {
-    if (v.initialValue > 0 && v.finalValue >= 0 && v.years > 0) {
-      results.push(result("年平均成長率", "複数年の変化を、1年あたりの平均の伸びに直した割合", "percent",
-        (v.finalValue / v.initialValue) ** (1 / v.years) - 1));
+  const hasOrdinary = isNum(v.previousOrdinaryProfit) && isNum(v.currentOrdinaryProfit);
+  if (hasOrdinary) {
+    results.push(result("経常利益の増減額", "今期の経常利益 − 前期の経常利益", "diff",
+      roundYen(v.currentOrdinaryProfit - v.previousOrdinaryProfit)));
+    if (v.previousOrdinaryProfit > 0 && v.currentOrdinaryProfit > 0) {
+      results.push(result("経常利益成長率", "増減額 ÷ 前期の経常利益", "percent",
+        ratio(v.currentOrdinaryProfit - v.previousOrdinaryProfit, v.previousOrdinaryProfit)));
     } else {
-      results.push(result("年平均成長率", "複数年の変化を、1年あたりの平均の伸びに直した割合", "percent", null,
-        "最初の金額が0以下、または年数が0以下のため計算できません"));
+      results.push(result("経常利益成長率", "増減額 ÷ 前期の経常利益", "percent", null,
+        "経常利益の成長率は、前期・当期とも黒字の場合だけ表示します。赤字や黒字転換のときは増減額で見てください"));
     }
   } else {
-    results.push(result("年平均成長率", "複数年の変化を、1年あたりの平均の伸びに直した割合", "percent", null,
-      missingReason(missingCagr)));
+    results.push(result("経常利益の増減額", "今期の経常利益 − 前期の経常利益", "diff", null,
+      missingReason([
+        ...(!isNum(v.previousOrdinaryProfit) ? ["前期の経常利益"] : []),
+        ...(!isNum(v.currentOrdinaryProfit) ? ["今期の経常利益"] : [])
+      ])));
+    results.push(result("経常利益成長率", "増減額 ÷ 前期の経常利益", "percent", null,
+      missingReason(["前期の経常利益", "今期の経常利益"])));
   }
 
   return {
@@ -591,15 +643,17 @@ function computeGrowth(v) {
     tables: [],
     basis: [
       "増減額 ＝ 今期の金額 − 前期の金額",
-      "成長率 ＝ 増減額 ÷ 前期の金額",
-      "年平均成長率 ＝（最後の金額 ÷ 最初の金額）^（1 ÷ 年数）− 1"
+      "売上高成長率 ＝ 増減額 ÷ 前期の売上高（前期の売上高が0の場合は表示しません）",
+      "経常利益成長率 ＝ 増減額 ÷ 前期の経常利益（前期・当期とも黒字の場合だけ表示します）"
     ],
-    notes: ["金額は、売上高でも利益でも、比べたい数字をそのまま入れられます。登録データがある会社では、初期値に売上高が入ります。"]
+    notes: []
   };
 }
 
 // ---------------------------------------------------------------------------
-// 給与・雇用コスト（labor-cost エンジン）
+// 10. 給与・雇用コスト
+// 確定式一覧に独立した確定式の記載がないため、入力項目の単純な集計として
+// 実装する（給与総額＋社会保険料の概算＋その他の経費）。
 // ---------------------------------------------------------------------------
 
 function computePayroll(v) {
@@ -642,21 +696,19 @@ export const SIMULATIONS = Object.freeze([
     no: 1,
     title: "商品・サービス価格",
     question: "価格を変えると、粗利益はどうなる？",
-    description: "価格変更や原価上昇の影響、目標の利益に必要な価格を試算します。",
+    description: "価格変更による粗利益の変化と、目標の粗利益から逆算した価格を試算します。",
     fields: [
       amount("currentPrice", "今の価格", "1単位の今の販売価格", { required: true }),
       amount("changedPrice", "変更後の価格", "値上げ・値下げ後の価格", { required: true }),
-      amount("unitCost", "1単位原価（今）", "1単位にかかる原価", { required: true }),
-      amount("changedUnitCost", "1単位原価（変更後）", "原価が変わる場合だけ入力します"),
-      integer("salesQuantity", "販売数量（今）", "今の販売数量", { required: true, positive: true }),
-      integer("expectedQuantityAfterPriceChange", "変更後の想定販売数量", "空欄の場合は今の販売数量で計算します", { positive: true }),
-      percent("targetGrossMarginRatePercent", "目標粗利益率", "価格の目安にしたい粗利益率（%）"),
-      amount("fixedCostsExcludingLabor", "人件費を除く固定費", "目標営業利益に必要な価格の計算に使います"),
-      amount("laborCosts", "人件費", "目標営業利益に必要な価格の計算に使います"),
-      amount("otherVariableCosts", "その他変動費", "目標営業利益に必要な価格の計算に使います"),
-      amount("targetOperatingProfit", "目標営業利益", "目標営業利益に必要な価格の計算に使います", { allowNegative: true })
+      amount("unitCost", "1単位原価", "商品・材料原価＋付随費用＋その他変動費の合計", { required: true }),
+      integer("salesQuantity", "販売数量", "価格の変更前後で共通の販売数量", { required: true, positive: true }),
+      percent("targetGrossMarginRatePercent", "目標粗利益率", "価格の目安にしたい粗利益率（%）。方式Aに使います"),
+      amount("targetGrossProfitAmount", "目標粗利益額（1単位）", "1単位あたりの目標の粗利益額。方式Cに使います")
     ],
-    compute: computePricing
+    compute: computePricing,
+    validateExtra: (v) => (isNum(v.targetGrossMarginRatePercent) && v.targetGrossMarginRatePercent >= 100)
+      ? [{ field: "targetGrossMarginRatePercent", message: "目標粗利益率は100%未満で入力してください" }]
+      : []
   },
   {
     id: "break-even",
@@ -676,16 +728,14 @@ export const SIMULATIONS = Object.freeze([
     id: "labor",
     no: 3,
     title: "人件費",
-    question: "人を雇うと、人件費と利益はどうなる？",
-    description: "採用による追加人件費と、営業利益への影響を試算します。",
+    question: "人件費は、粗利益のどれくらい？",
+    description: "労働分配率（粗利益のうち人件費の割合）と、目標・変更後の人件費を試算します。",
     fields: [
-      integer("plannedHireCount", "採用予定人数", "これから雇う人数", { required: true }),
-      amount("expectedSalaryPerPerson", "1人当たりの想定給与（年間）", "賞与を含めた年額の目安", { required: true }),
-      percent("socialInsuranceRatePercent", "社会保険料率（概算）", "会社負担分の目安（%）", { required: true }),
-      amount("currentLaborCosts", "今の人件費（年間）", "採用後の人件費の計算に使います"),
-      amount("currentOperatingProfit", "今の営業利益", "採用後の営業利益の計算に使います", { allowNegative: true }),
-      amount("expectedAdditionalSales", "採用後に見込む年間追加売上", "採用後の営業利益の計算に使います"),
-      percent("marginalProfitRatePercent", "限界利益率", "売上のうち固定費の回収と利益に回せる割合（%）")
+      amount("currentLaborCosts", "今の人件費", "年間の人件費の合計", { required: true }),
+      amount("grossProfit", "粗利益（売上総利益）", "売上高から売上原価を引いた金額", { required: true, allowNegative: true }),
+      number("employeeCount", "従業員数", "パート等は勤務割合に直した人数（FTE）でも入力できます。小数第1位まで"),
+      percent("targetLaborShareRatePercent", "目標労働分配率", "方式B（目標人件費）に使います（%）"),
+      amount("changedLaborCosts", "変更後の人件費", "方式C（変更比較）に使います")
     ],
     compute: computeLabor
   },
@@ -694,7 +744,7 @@ export const SIMULATIONS = Object.freeze([
     no: 4,
     title: "借入返済",
     question: "毎月の返済額と、返済の目安は？",
-    description: "借入の返済額・利息の総額と、返済の負担の目安を試算します。",
+    description: "借入の返済額・利息の総額・返済表と、返済の負担の目安を試算します。繰上返済も計算できます。",
     fields: [
       amount("loanAmount", "借入金額", "借りる金額", { required: true }),
       percent("interestRatePercent", "年利", "年あたりの利率（%）", { required: true }),
@@ -706,27 +756,42 @@ export const SIMULATIONS = Object.freeze([
           { value: "EQUAL_PRINCIPAL", label: "元金均等（毎月の元金が一定）" }
         ]
       },
-      amount("annualPreDebtServiceCashFlow", "年間返済前キャッシュフロー", "返済に回せる年間のお金。キャッシュ倍率の計算に使います"),
-      amount("shortTermBorrowings", "短期借入金", "債務償還年数の計算に使います"),
-      amount("longTermBorrowings", "長期借入金", "債務償還年数の計算に使います"),
-      amount("operatingProfit", "営業利益", "債務償還年数の計算に使います", { allowNegative: true }),
-      amount("depreciation", "減価償却費", "債務償還年数の計算に使います")
+      integer("prepaymentMonth", "繰上返済の月", "何か月目に繰上返済するか。使う場合は金額・方式も入力してください", { positive: true, max: 600 }),
+      amount("prepaymentAmount", "繰上返済額", "繰上返済に回す金額", { positive: true }),
+      {
+        id: "prepaymentType", label: "繰上返済の方式", hint: "期間短縮型は返済額を変えずに期間を短く、返済額軽減型は毎月の返済額を下げます", kind: "select",
+        options: [
+          { value: "PERIOD_SHORTEN", label: "期間短縮型（期間を短くする）" },
+          { value: "PAYMENT_REDUCE", label: "返済額軽減型（毎月の返済額を下げる）" }
+        ]
+      },
+      amount("annualCashFlow", "年間キャッシュフロー", "返済余裕倍率（DSCR）の計算に使います")
     ],
-    compute: computeLoan
+    compute: computeLoan,
+    validateExtra: (v) => {
+      const errors = [];
+      const anyPrepay = isNum(v.prepaymentMonth) || isNum(v.prepaymentAmount) || (v.prepaymentType ?? "") !== "";
+      if (anyPrepay) {
+        if (!isNum(v.prepaymentMonth)) errors.push({ field: "prepaymentMonth", message: "繰上返済を使う場合は、繰上返済の月も入力してください" });
+        if (!isNum(v.prepaymentAmount)) errors.push({ field: "prepaymentAmount", message: "繰上返済を使う場合は、繰上返済額も入力してください" });
+        if ((v.prepaymentType ?? "") === "") errors.push({ field: "prepaymentType", message: "繰上返済を使う場合は、繰上返済の方式も選んでください" });
+        if (isNum(v.prepaymentMonth) && isNum(v.repaymentMonths) && v.prepaymentMonth >= v.repaymentMonths) {
+          errors.push({ field: "prepaymentMonth", message: "繰上返済の月は、返済月数より小さい値で入力してください" });
+        }
+      }
+      return errors;
+    }
   },
   {
     id: "investment",
     no: 5,
     title: "投資回収・利回り",
     question: "投資は、何年で回収できる？",
-    description: "設備投資などの回収年数と、利回りを試算します。",
+    description: "設備投資などの回収年数と利回りを、年間の利益（収入−経費）をもとに試算します。",
     fields: [
-      amount("investmentAmount", "投資額", "投資にかける金額", { required: true }),
-      amount("annualIncrementalCashFlow", "年間増分キャッシュフロー", "投資によって1年で増えるお金。回収年数の計算に使います"),
-      amount("annualOperatingProfitBeforeInvestment", "投資前の年間営業利益", "利回りの計算に使います", { allowNegative: true }),
-      amount("annualOperatingProfitAfterInvestment", "投資後の年間営業利益", "利回りの計算に使います", { allowNegative: true }),
-      amount("annualRunningCost", "年間ランニングコスト", "投資後に毎年かかる費用"),
-      number("targetPaybackYears", "目標回収年数", "何年で回収したいか（年）", { positive: true })
+      amount("investmentAmount", "投資額", "投資にかける金額", { required: true, positive: true }),
+      amount("annualRevenue", "年間収入", "投資によって得られる1年の収入", { required: true }),
+      amount("annualExpense", "年間経費", "投資後に毎年かかる経費。未入力の場合は0円として計算します")
     ],
     compute: computeInvestment
   },
@@ -734,28 +799,54 @@ export const SIMULATIONS = Object.freeze([
     id: "cashflow",
     no: 6,
     title: "資金繰り",
-    question: "今の収支で、現預金は何か月持つ？",
-    description: "月の収支から、現預金の余命と残高の推移の目安を試算します。",
+    question: "日々の残高は、どう推移する？",
+    description: "日別の入出金から、残高の推移・最低残高・残高が不足する日を試算します。",
     fields: [
-      amount("cashBalance", "現在の現預金", "今の現金と預金の合計", { required: true }),
-      amount("monthlyCashIn", "月間キャッシュイン", "1か月に入ってくるお金の目安", { required: true }),
-      amount("monthlyCashOut", "月間キャッシュアウト", "1か月に出ていくお金（返済を除く）の目安", { required: true }),
-      amount("monthlyLoanPayment", "月間返済支出", "1か月の借入返済額"),
-      integer("projectionMonths", "残高表示月数", "残高の推移を何か月分表示するか（空欄の場合は6か月）", { positive: true, max: 24 })
+      amount("cashBalance", "現在の現預金（開始残高）", "今日の現金と預金の合計", { required: true }),
+      integer("periodDays", "対象の日数", "これから何日分を見るか（最大31日）", { required: true, positive: true, max: 31 }),
+      amount("dailyCashIn", "毎日の入金", "ほぼ毎日入ってくる入金の、1日分の目安（ない場合は0）", { required: true }),
+      amount("dailyCashOut", "毎日の支出", "ほぼ毎日出ていく支出の、1日分の目安（ない場合は0）", { required: true }),
+      integer("specialInDay1", "入金予定1：日", "特定の日の入金。何日目か", { positive: true, max: 31 }),
+      amount("specialInAmount1", "入金予定1：金額", "その日の入金額"),
+      integer("specialInDay2", "入金予定2：日", "特定の日の入金。何日目か", { positive: true, max: 31 }),
+      amount("specialInAmount2", "入金予定2：金額", "その日の入金額"),
+      integer("specialOutDay1", "支出予定1：日", "特定の日の支出（給与・家賃など）。何日目か", { positive: true, max: 31 }),
+      amount("specialOutAmount1", "支出予定1：金額", "その日の支出額"),
+      integer("specialOutDay2", "支出予定2：日", "特定の日の支出。何日目か", { positive: true, max: 31 }),
+      amount("specialOutAmount2", "支出予定2：金額", "その日の支出額"),
+      amount("minimumCashBalance", "最低維持資金", "手元に残しておきたい最低限の金額")
     ],
-    compute: computeCashFlow
+    compute: computeCashFlow,
+    validateExtra: (v) => {
+      const errors = [];
+      for (const prefix of ["specialIn", "specialOut"]) {
+        for (const n of [1, 2]) {
+          const day = v[`${prefix}Day${n}`];
+          const amt = v[`${prefix}Amount${n}`];
+          const label = prefix === "specialIn" ? `入金予定${n}` : `支出予定${n}`;
+          if (isNum(day) && !isNum(amt)) errors.push({ field: `${prefix}Amount${n}`, message: `${label}の金額も入力してください` });
+          if (!isNum(day) && isNum(amt)) errors.push({ field: `${prefix}Day${n}`, message: `${label}の日も入力してください` });
+          if (isNum(day) && isNum(v.periodDays) && day > v.periodDays) {
+            errors.push({ field: `${prefix}Day${n}`, message: `${label}の日は、対象の日数以内で入力してください` });
+          }
+        }
+      }
+      return errors;
+    }
   },
   {
     id: "soundness",
     no: 7,
     title: "財務健全性",
     question: "会社の財務の構成はどうなっている？",
-    description: "貸借対照表の数字から、財務の構成の割合を試算します。",
+    description: "貸借対照表の数字から、財務の構成の割合（7つの指標）を試算します。",
     fields: [
       amount("currentAssets", "流動資産", "1年以内に現金化できる資産"),
+      amount("quickAssets", "当座資産", "現預金・売掛金・有価証券など、すぐに現金化できる資産"),
       amount("fixedAssets", "固定資産", "建物・土地・機械など、長く使う資産"),
       amount("totalAssets", "資産合計", "資産の全部の合計"),
       amount("currentLiabilities", "流動負債", "1年以内に支払う負債"),
+      amount("fixedLiabilities", "固定負債", "長期借入金など、1年を超えて支払う負債"),
       amount("totalLiabilities", "負債合計", "負債の全部の合計"),
       amount("netAssets", "純資産", "資産から負債を引いた、返さなくてよいお金", { allowNegative: true })
     ],
@@ -766,14 +857,15 @@ export const SIMULATIONS = Object.freeze([
     no: 8,
     title: "収益性比率",
     question: "売上や資産に対して、利益はどれだけ？",
-    description: "利益率と、資産の使い方の割合を試算します。",
+    description: "4種類の利益率と、資産に対する利益の割合を試算します。",
     fields: [
       amount("salesAmount", "売上高", ""),
+      amount("grossProfit", "売上総利益", "売上高から売上原価を引いた金額（粗利益）", { allowNegative: true }),
       amount("operatingProfit", "営業利益", "本業で得た利益", { allowNegative: true }),
       amount("ordinaryProfit", "経常利益", "通常の活動全体での利益", { allowNegative: true }),
       amount("netProfit", "当期純利益", "税金などを引いたあと、最終的に残る利益", { allowNegative: true }),
       amount("totalAssets", "資産合計", "資産の全部の合計"),
-      amount("netAssets", "純資産", "資産から負債を引いた、返さなくてよいお金", { allowNegative: true })
+      percent("targetOrdinaryMarginRatePercent", "目標経常利益率", "必要な経常利益の計算に使います（%）")
     ],
     compute: computeProfitability
   },
@@ -782,13 +874,12 @@ export const SIMULATIONS = Object.freeze([
     no: 9,
     title: "成長率",
     question: "前期と比べて、どれだけ伸びた？",
-    description: "金額の増減と成長率、複数年の年平均成長率を試算します。",
+    description: "売上高と経常利益の増減額と成長率を試算します。",
     fields: [
-      amount("previousValue", "前期の金額", "比べる金額（売上高など）", { required: true, allowNegative: true }),
-      amount("currentValue", "今期の金額", "比べる金額（売上高など）", { required: true, allowNegative: true }),
-      amount("initialValue", "最初の金額", "年平均成長率の計算に使います"),
-      amount("finalValue", "最後の金額", "年平均成長率の計算に使います"),
-      number("years", "年数", "最初の金額から最後の金額までの年数", { positive: true })
+      amount("previousSalesAmount", "前期の売上高", "", { required: true }),
+      amount("currentSalesAmount", "今期の売上高", "", { required: true }),
+      amount("previousOrdinaryProfit", "前期の経常利益", "入力すると、経常利益の増減と成長率も表示します", { allowNegative: true }),
+      amount("currentOrdinaryProfit", "今期の経常利益", "入力すると、経常利益の増減と成長率も表示します", { allowNegative: true })
     ],
     compute: computeGrowth
   },
@@ -813,7 +904,7 @@ export const SIMULATION_BY_ID = Object.freeze(
 );
 
 // ---------------------------------------------------------------------------
-// Validation（総整理 5章：計算不能・入力不足・不正値はValidationで判定する）
+// Validation（総整理 5章・確定式一覧14章：入力検証は計算層と分ける）
 // ---------------------------------------------------------------------------
 
 export function validateSimulation(sim, values) {
@@ -855,8 +946,8 @@ export function validateSimulation(sim, values) {
       continue;
     }
   }
-  if (sim.id === "pricing" && isNum(values.targetGrossMarginRatePercent) && values.targetGrossMarginRatePercent >= 100) {
-    errors.push({ field: "targetGrossMarginRatePercent", message: "目標粗利益率は100%未満で入力してください" });
+  if (typeof sim.validateExtra === "function") {
+    errors.push(...sim.validateExtra(values));
   }
   return errors;
 }
@@ -881,12 +972,6 @@ function completeAggregates(company) {
     .map((key) => buildMonthlyAggregate(company, key))
     .filter((a) => a !== null)
     .sort((a, b) => a.fiscalKey.localeCompare(b.fiscalKey));
-}
-
-function lastDayOfYearMonth(yearMonth) {
-  const [y, m] = yearMonth.split("-").map(Number);
-  const day = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  return `${yearMonth}-${String(day).padStart(2, "0")}`;
 }
 
 // 会社情報から、試算の初期値に使える数字を集める。
@@ -924,6 +1009,7 @@ function collectCompanyFigures(company) {
     pl.PL002 = monthly.M002;
     pl.PL015 = monthly.M006;
     pl.PL007 = monthly.M003;
+    pl.PL003 = monthly.M101;
     pl.PL017 = monthly.M103;
     pl.PL025 = monthly.M007;
     sources.push("月次12か月分の集計");
@@ -948,12 +1034,21 @@ function collectCompanyFigures(company) {
   }
   for (const agg of aggregates) {
     if (!annualKeys.has(agg.fiscalKey) && isNum(agg.figures.M001)) {
-      series.push({ endDate: lastDayOfYearMonth(agg.fiscalKey), sales: agg.figures.M001 });
+      series.push({ endDate: agg.endYearMonth, sales: agg.figures.M001 });
     }
   }
   series.sort((a, b) => a.endDate.localeCompare(b.endDate));
 
-  return { pl, bs, monthly, series, sources };
+  // 成長率用：経常利益は直近2期の年次登録から取る
+  const ordinaryPair = { previous: null, current: null };
+  if (periods.length >= 2) {
+    const prev = getAnnualFigures(periods[periods.length - 2]);
+    const cur = getAnnualFigures(periods[periods.length - 1]);
+    ordinaryPair.previous = prev.PL020;
+    ordinaryPair.current = cur.PL020;
+  }
+
+  return { pl, bs, monthly, series, ordinaryPair, sources };
 }
 
 function costStructure(pl, monthly) {
@@ -972,7 +1067,7 @@ function costStructure(pl, monthly) {
 
 export function resolveSimInitialValues(company, simId) {
   if (!company) return { values: {}, sourceNote: null };
-  const { pl, bs, monthly, series, sources } = collectCompanyFigures(company);
+  const { pl, bs, monthly, series, ordinaryPair, sources } = collectCompanyFigures(company);
   const values = {};
   const put = (key, value) => { if (isNum(value)) values[key] = value; };
 
@@ -986,23 +1081,11 @@ export function resolveSimInitialValues(company, simId) {
     }
     case "labor": {
       put("currentLaborCosts", isNum(pl.PL007) ? pl.PL007 : monthly?.M003);
-      put("currentOperatingProfit", pl.PL017);
-      const { variableCosts } = costStructure(pl, monthly);
-      if (isNum(pl.PL001) && pl.PL001 > 0 && isNum(variableCosts)) {
-        const ratePercent = ((pl.PL001 - variableCosts) / pl.PL001) * 100;
-        values.marginalProfitRatePercent = Math.round(ratePercent * 10) / 10;
-      }
+      put("grossProfit", isNum(pl.PL003) ? pl.PL003 : monthly?.M101);
       break;
     }
     case "loan": {
-      put("shortTermBorrowings", bs?.BS014);
-      put("longTermBorrowings", bs?.BS019);
-      put("operatingProfit", pl.PL017);
-      put("depreciation", pl.PL013);
-      break;
-    }
-    case "investment": {
-      put("annualOperatingProfitBeforeInvestment", pl.PL017);
+      // 旧借入条件の初期値は登録データに無いため、試算固有の項目は手入力とする
       break;
     }
     case "cashflow": {
@@ -1014,27 +1097,29 @@ export function resolveSimInitialValues(company, simId) {
       put("fixedAssets", bs?.BS011);
       put("totalAssets", bs?.BS012);
       put("currentLiabilities", bs?.BS018);
+      put("fixedLiabilities", bs?.BS021);
       put("totalLiabilities", bs?.BS022);
       put("netAssets", bs?.BS026);
+      if (isNum(bs?.BS001) && isNum(bs?.BS002) && isNum(bs?.BS003)) {
+        values.quickAssets = bs.BS001 + bs.BS002 + bs.BS003;
+      }
       break;
     }
     case "profitability": {
       put("salesAmount", pl.PL001);
+      put("grossProfit", pl.PL003);
       put("operatingProfit", pl.PL017);
       put("ordinaryProfit", pl.PL020);
       put("netProfit", pl.PL025);
       put("totalAssets", bs?.BS012);
-      put("netAssets", bs?.BS026);
       break;
     }
     case "growth": {
       if (series.length >= 2) {
-        put("previousValue", series[series.length - 2].sales);
-        put("currentValue", series[series.length - 1].sales);
-        put("initialValue", series[0].sales);
-        put("finalValue", series[series.length - 1].sales);
-        const years = elapsedYearsActAct(series[0].endDate, series[series.length - 1].endDate);
-        if (isNum(years) && years > 0) values.years = Math.round(years * 100) / 100;
+        put("previousSalesAmount", series[series.length - 2].sales);
+        put("currentSalesAmount", series[series.length - 1].sales);
+        put("previousOrdinaryProfit", ordinaryPair.previous);
+        put("currentOrdinaryProfit", ordinaryPair.current);
         sources.push("売上高");
       }
       break;

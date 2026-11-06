@@ -205,18 +205,25 @@ function formatResultValue(r) {
     case "yen": return formatYen(r.value);
     case "diff": return formatDiff(r.value);
     case "percent": return formatPercent(r.value * 100);
+    case "points": {
+      const sign = r.value > 0 ? "+" : r.value < 0 ? "−" : "";
+      return `${sign}${trimNumber(Math.abs(r.value), 1)} ポイント`;
+    }
     case "times": return `${trimNumber(r.value, 2)} 倍`;
     case "years": return `${trimNumber(r.value, 2)} 年`;
     case "months": return `${trimNumber(r.value, 1)} か月`;
+    case "day": return `${Math.round(r.value)} 日目`;
     case "count": return `${Math.round(r.value).toLocaleString("ja-JP")} ${r.unit}`;
     default: return String(r.value);
   }
 }
 
 function formatCell(format, value) {
+  if (format === "monthLabel" && typeof value === "string") return value;
   if (!isNum(value)) return "―";
   if (format === "yen") return formatYen(value);
-  if (format === "month") return `${value}か月目`;
+  if (format === "monthLabel") return `${value}か月目`;
+  if (format === "day") return `${value}日目`;
   return String(value);
 }
 
