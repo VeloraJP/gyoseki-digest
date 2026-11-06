@@ -7,7 +7,7 @@ import {
   fieldLabel
 } from "../data/fields.js";
 import { getAnnualFigures, getMonthlyFigures, findMonthlyRecord } from "../core/calc.js";
-import { diffPair, monthlyCumulative, shiftYearMonth } from "../core/compare.js";
+import { diffPair, monthlyCumulative, priorYearCumulativeComparison, shiftYearMonth } from "../core/compare.js";
 import { buildAnnualTrend, buildMonthlyTrend } from "../core/trend.js";
 import { barChartSvg } from "../components/chart.js";
 import { backButtonHtml, diffClass, esc, formatDiff, formatRate, formatYearMonth, formatYen } from "../components/dom.js";
@@ -133,6 +133,55 @@ function renderAnnualReview({ company, params, link }) {
     </div>`;
 }
 
+// 前年同期との累計比較（仕様書 7.3）。今年の期首からの累計と、前年の同じ時期までの累計を並べる。
+// 前年のデータがない・そろっていない場合は、枠を残して「―」と理由を表示する。
+function renderPriorYearCumulative(company, targetYm) {
+  const result = priorYearCumulativeComparison(company, targetYm);
+  const { current, prior } = result;
+  const codes = [...MONTHLY_INPUT_CODES, ...MONTHLY_AUTO_CODES];
+  const autoSet = new Set(MONTHLY_AUTO_CODES);
+
+  const rows = codes.map((code) => {
+    const cells = [labelCell(code), `<td>${formatYen(current.figures[code])}</td>`];
+    if (result.comparable) {
+      const d = result.diffs[code];
+      cells.push(
+        `<td>${formatYen(d.previous)}</td>`,
+        `<td class="${diffClass(d.amount)}">${formatDiff(d.amount)}</td>`,
+        `<td class="${diffClass(d.amount)}">${formatRate(d.rate)}</td>`
+      );
+    } else {
+      cells.push(`<td>―</td>`, `<td>―</td>`, `<td>―</td>`);
+    }
+    const tr = `<tr>${cells.join("")}</tr>`;
+    return autoSet.has(code) ? tr.replace("<tr>", '<tr class="auto-row">') : tr;
+  }).join("");
+
+  let note;
+  if (result.status === "no-prior-data") {
+    note = "前年の月次登録がないため、前年同期の累計は表示できません。";
+  } else if (result.status === "prior-incomplete") {
+    note = `前年の同じ時期に未登録の月（${prior.missingMonths.map(formatYearMonth).join("、")}）があるため、そろった数字同士の比較は表示していません。前年の累計がそろうと比較が表示されます。`;
+  } else if (result.status === "current-incomplete") {
+    note = `今年の累計に未登録の月（${current.missingMonths.map(formatYearMonth).join("、")}）があるため、そろった数字同士の比較は表示していません。未登録の月を登録すると比較が表示されます。`;
+  } else {
+    note = `前年の累計は、${formatYearMonth(prior.rangeMonths[0])}から${formatYearMonth(result.priorTargetYearMonth)}までの${prior.registeredCount}か月分の合計です。`;
+  }
+
+  return `
+    <h2>前年同期との累計比較</h2>
+    <p class="note">今年の期のはじめから${formatYearMonth(targetYm)}までの累計と、前年の同じ時期までの累計を比べます。月ごとの比較とちがい、季節の波に左右されにくい見方です。</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>項目</th><th>今年の累計</th><th>前年の累計</th><th>増減額</th><th>増減率</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="note-box">
+      ${note}<br>当期純利益は、月次試算表をもとにした暫定の数字です。
+    </div>`;
+}
+
 function renderMonthlyReview({ company, params, link }) {
   const records = [...(company.monthlyRecords ?? [])].sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
   if (records.length === 0) {
@@ -196,7 +245,8 @@ function renderMonthlyReview({ company, params, link }) {
     </div>
     <div class="note-box">
       当年度累計は、${formatYearMonth(cumulative.rangeMonths[0])}から${formatYearMonth(targetYm)}までのうち、登録済みの${cumulative.registeredCount}か月分の合計です。${missingNote}
-    </div>`;
+    </div>
+    ${renderPriorYearCumulative(company, targetYm)}`;
 }
 
 export function renderReview({ company, params, link }) {

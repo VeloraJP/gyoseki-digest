@@ -77,3 +77,30 @@ export function monthlyCumulative(company, targetYearMonth) {
     figures: sums
   };
 }
+
+// 前年同期との累計比較（仕様書 7.3）
+// 対象月の当年度累計と、前年の同じ決算期の同じ月までの累計を比べる。
+// どちらかの範囲に未登録月がある場合は、そろっていない数字同士を比べない
+// （未登録月を0で補わない）。比べられない理由は status で返す。
+// - no-prior-data: 前年の範囲に月次記録が1件もない
+// - prior-incomplete: 前年の範囲に未登録月がある
+// - current-incomplete: 当年度の範囲に未登録月がある
+export function priorYearCumulativeComparison(company, targetYearMonth) {
+  const current = monthlyCumulative(company, targetYearMonth);
+  const priorTargetYearMonth = shiftYearMonth(targetYearMonth, -12);
+  const prior = monthlyCumulative(company, priorTargetYearMonth);
+
+  let status = "ok";
+  if (prior.registeredCount === 0) status = "no-prior-data";
+  else if (prior.missingMonths.length > 0) status = "prior-incomplete";
+  else if (current.missingMonths.length > 0) status = "current-incomplete";
+
+  const diffs = {};
+  if (status === "ok") {
+    for (const code of Object.keys(current.figures)) {
+      diffs[code] = diffPair(current.figures[code], prior.figures[code]);
+    }
+  }
+
+  return { current, prior, priorTargetYearMonth, status, comparable: status === "ok", diffs };
+}

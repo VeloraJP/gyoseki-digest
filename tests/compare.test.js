@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildFactorList, diffPair, monthlyCumulative, shiftYearMonth } from "../assets/js/core/compare.js";
+import { buildFactorList, diffPair, monthlyCumulative, priorYearCumulativeComparison, shiftYearMonth } from "../assets/js/core/compare.js";
 import { createAnnualPeriod, createCompany, createMonthlyRecord } from "../assets/js/data/schema.js";
 
 test("増減額と増減率は仕様書6.3の式どおり", () => {
@@ -57,6 +57,68 @@ test("年月の前後計算", () => {
   assert.equal(shiftYearMonth("2027-01", -1), "2026-12");
   assert.equal(shiftYearMonth("2026-10", -12), "2025-10");
   assert.equal(shiftYearMonth("2026-12", 1), "2027-01");
+});
+
+const CUR_VALUES = { M001: 100, M002: 60, M003: 20, M004: 3, M005: 2, M006: 4, M007: 9 };
+const PRIOR_VALUES = { M001: 80, M002: 60, M003: 20, M004: 3, M005: 2, M006: 4, M007: 6 };
+
+function addMonths(company, yearMonths, values) {
+  for (const ym of yearMonths) {
+    company.monthlyRecords.push(createMonthlyRecord({ yearMonth: ym, values: { ...values } }));
+  }
+}
+
+test("前年同期累計比較：両年そろっていれば累計同士を比べる", () => {
+  const company = createCompany({ closingMonth: 3 });
+  addMonths(company, ["2026-04", "2026-05", "2026-06"], CUR_VALUES);
+  addMonths(company, ["2025-04", "2025-05", "2025-06"], PRIOR_VALUES);
+  const result = priorYearCumulativeComparison(company, "2026-06");
+  assert.equal(result.status, "ok");
+  assert.equal(result.comparable, true);
+  assert.equal(result.priorTargetYearMonth, "2025-06");
+  // 期の途中（3か月目）までの累計同士の比較になっている
+  assert.equal(result.current.figures.M001, 300);
+  assert.equal(result.prior.figures.M001, 240);
+  assert.equal(result.diffs.M001.amount, 60);
+  assert.equal(result.diffs.M001.rate, 25);
+  assert.equal(result.diffs.M007.amount, 9);
+  assert.equal(result.diffs.M007.rate, 50);
+});
+
+test("前年同期累計比較：期首月は1か月分同士の比較になる", () => {
+  const company = createCompany({ closingMonth: 3 });
+  addMonths(company, ["2026-04"], CUR_VALUES);
+  addMonths(company, ["2025-04"], PRIOR_VALUES);
+  const result = priorYearCumulativeComparison(company, "2026-04");
+  assert.equal(result.comparable, true);
+  assert.equal(result.diffs.M001.amount, 20);
+});
+
+test("前年同期累計比較：前年の登録がまったくない場合は比べない", () => {
+  const company = createCompany({ closingMonth: 3 });
+  addMonths(company, ["2026-04", "2026-05", "2026-06"], CUR_VALUES);
+  const result = priorYearCumulativeComparison(company, "2026-06");
+  assert.equal(result.status, "no-prior-data");
+  assert.equal(result.comparable, false);
+  assert.deepEqual(result.diffs, {});
+});
+
+test("前年同期累計比較：前年に未登録月がある場合は比べない", () => {
+  const company = createCompany({ closingMonth: 3 });
+  addMonths(company, ["2026-04", "2026-05", "2026-06"], CUR_VALUES);
+  addMonths(company, ["2025-04", "2025-06"], PRIOR_VALUES); // 2025-05 が未登録
+  const result = priorYearCumulativeComparison(company, "2026-06");
+  assert.equal(result.status, "prior-incomplete");
+  assert.equal(result.comparable, false);
+});
+
+test("前年同期累計比較：当年度に未登録月がある場合は比べない", () => {
+  const company = createCompany({ closingMonth: 3 });
+  addMonths(company, ["2026-04", "2026-06"], CUR_VALUES); // 2026-05 が未登録
+  addMonths(company, ["2025-04", "2025-05", "2025-06"], PRIOR_VALUES);
+  const result = priorYearCumulativeComparison(company, "2026-06");
+  assert.equal(result.status, "current-incomplete");
+  assert.equal(result.comparable, false);
 });
 
 test("当年度累計は登録済み月だけを合計し、未登録月を明示する", () => {

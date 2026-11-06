@@ -122,6 +122,46 @@ test("月次レビュー：前月・前年同月比較と累計、未登録月�
   assert.match(html, /未登録の月/);
 });
 
+test("月次レビュー：前年同期との累計比較が出る（両年そろっている場合）", () => {
+  const company = createCompany({ name: "累計比較あり", closingMonth: 3 });
+  const cur = { M001: 100_000, M002: 60_000, M003: 20_000, M004: 3_000, M005: 2_000, M006: 4_000, M007: 9_000 };
+  const prior = { ...cur, M001: 80_000, M007: 6_000 };
+  for (const ym of ["2026-04", "2026-05", "2026-06"]) {
+    company.monthlyRecords.push(createMonthlyRecord({ yearMonth: ym, values: { ...cur } }));
+  }
+  for (const ym of ["2025-04", "2025-05", "2025-06"]) {
+    company.monthlyRecords.push(createMonthlyRecord({ yearMonth: ym, values: { ...prior } }));
+  }
+  const html = renderReview({ company, params: { tab: "monthly", ym: "2026-06" }, link });
+  assert.match(html, /前年同期との累計比較/);
+  assert.match(html, /前年の累計/);
+  // 今年の累計売上 300,000円、前年の累計売上 240,000円、増減率 +25%
+  assert.match(html, /300,000円/);
+  assert.match(html, /240,000円/);
+  assert.match(html, /\+25%/);
+  // 当期純利益の暫定の注記
+  assert.match(html, /暫定の数字/);
+});
+
+test("月次レビュー：前年の登録がない場合は枠と理由が残る", () => {
+  const company = createCompany({ name: "前年なし", closingMonth: 3 });
+  const cur = { M001: 100_000, M002: 60_000, M003: 20_000, M004: 3_000, M005: 2_000, M006: 4_000, M007: 9_000 };
+  for (const ym of ["2026-04", "2026-05", "2026-06"]) {
+    company.monthlyRecords.push(createMonthlyRecord({ yearMonth: ym, values: { ...cur } }));
+  }
+  const html = renderReview({ company, params: { tab: "monthly", ym: "2026-06" }, link });
+  assert.match(html, /前年同期との累計比較/);
+  assert.match(html, /前年の月次登録がないため、前年同期の累計は表示できません/);
+  assert.match(html, /<td>―<\/td>/);
+});
+
+test("月次レビュー：前年がそろっていない場合は理由が出て数字は比べない", () => {
+  const company = sampleCompany(); // 2025年は2025-10のみ登録
+  const html = renderReview({ company, params: { tab: "monthly", ym: "2026-10" }, link });
+  assert.match(html, /前年同期との累計比較/);
+  assert.match(html, /前年の同じ時期に未登録の月/);
+});
+
 test("データ管理画面に書き出し・読み込みがある", () => {
   const html = renderData({ link });
   assert.match(html, /JSONを書き出す/);
