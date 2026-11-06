@@ -223,7 +223,7 @@ function renderPlans(period) {
 export function renderGoal({ company, params, link }) {
   const head = `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
       <h1>${pageIcon("flag", "sun")}目標と進捗</h1>
       <p class="note">目標の利益を決めると、そのために必要な売上高と、あといくら必要かを表示します。</p>

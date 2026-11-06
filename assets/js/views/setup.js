@@ -20,7 +20,9 @@ export function renderSetup({ params, company, link }) {
 
   return `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${company
+        ? backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })
+        : backButtonHtml({ topHref: link(ROUTES.START), topLabel: "会社選択へ", topIcon: "building" })}
       <p class="crumb"><a href="${link(ROUTES.START)}">会社選択</a></p>
       <h1>${pageIcon("gear")}${isNew ? "会社の初回設定" : "会社の設定"}</h1>
       <p class="note">ここでは会社の基本設定だけを行います。業績の数字は求めません。</p>

@@ -232,3 +232,37 @@ test("戻るボタン：対象の各画面にあり、スタートとホーム�
   assert.ok(!renderStart({ data, link }).includes("data-back"));
   assert.ok(!renderHome({ company, link }).includes("data-back"));
 });
+
+import { renderSummary } from "../assets/js/views/summary.js";
+
+test("会社トップへボタン：会社に紐づく画面ではその会社のホーム、特定できない画面では会社選択へ", () => {
+  const company = sampleCompany();
+  const period = company.annualPeriods[1];
+  const record = company.monthlyRecords.find((r) => r.yearMonth === "2026-10");
+  const homeHref = `href="#/home?company=${company.id}"`;
+  const companyBound = [
+    renderSetup({ params: { company: company.id }, company, link }),
+    renderAnnual({ company, period, link }),
+    renderMonthly({ company, yearMonth: "2026-10", record, link }),
+    renderAnalysis({ company, link }),
+    renderGoal({ company, params: {}, link }),
+    renderReview({ company, params: { tab: "annual" }, link }),
+    renderSummary({ company, link })
+  ];
+  for (const html of companyBound) {
+    assert.match(html, /data-company-top/);
+    assert.match(html, /会社トップへ/);
+    assert.ok(html.includes(homeHref), "会社トップへのリンク先が対象会社のホームであること");
+  }
+  // 会社が特定できない画面（データ管理・会社の新規登録）では会社選択へ落とす
+  for (const html of [renderData({ link }), renderSetup({ params: {}, company: null, link })]) {
+    assert.match(html, /data-company-top/);
+    assert.match(html, /会社選択へ/);
+    assert.ok(html.includes('href="#/start"'));
+  }
+  // スタートとホームには付けない
+  const data = createPersistentData();
+  data.companies.push(company);
+  assert.ok(!renderStart({ data, link }).includes("data-company-top"));
+  assert.ok(!renderHome({ company, link }).includes("data-company-top"));
+});

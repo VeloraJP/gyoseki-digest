@@ -81,6 +81,12 @@
 
 .btn-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.8rem 0; }
 
+/* 画面先頭の戻り先ボタン（前のページへ戻る／会社トップへ）。
+   2つとも横幅いっぱいに伸ばして割り付け、収まらない幅では折り返して縦に積む。 */
+.nav-back-row .btn { flex: 1 1 auto; }
+.btn--soft { background: var(--color-primary-soft); }
+.btn--soft:hover { background: #cdeadd; }
+
 /* ホームの行き先タイル */
 .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin: 0.9rem 0 1.3rem; }
 .nav-grid .btn {

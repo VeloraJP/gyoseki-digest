@@ -45,7 +45,7 @@ export function renderAnnual({ company, period, link }) {
 
   return `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
       <h1>${pageIcon("book")}年次登録${isNew ? "" : "（登録済みの期）"}</h1>
       <p class="note">決算が確定したあと、年1回の登録を基本とします。金額の入力単位は「${unitLabel}」です。</p>

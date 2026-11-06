@@ -20,7 +20,7 @@ import {
 export function renderData({ link }) {
   return `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.START), topLabel: "会社選択へ", topIcon: "building" })}
       <p class="crumb"><a href="${link(ROUTES.START)}">会社選択</a></p>
       <h1>${pageIcon("database")}データ管理</h1>
     </div>

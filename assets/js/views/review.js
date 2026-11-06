@@ -203,7 +203,7 @@ export function renderReview({ company, params, link }) {
   const tab = params.tab === "monthly" ? "monthly" : "annual";
   return `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
       <h1>${pageIcon("calendar")}月次・年度レビュー</h1>
       <p class="note">前月・前年同月・前年度と比べて、数字がどう変わったかを確認します。</p>

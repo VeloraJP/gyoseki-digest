@@ -27,7 +27,7 @@ export function renderMonthly({ company, yearMonth, record, link }) {
 
   return `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
       <h1>${pageIcon("clock")}月次登録${record ? "（登録済みの月）" : ""}</h1>
       <p class="note">月の締めが終わったあと、月1回の登録を基本とします。登録は1か月分ずつ行います。金額の入力単位は「${unitLabel}」です。</p>

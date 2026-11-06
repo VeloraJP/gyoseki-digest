@@ -39,7 +39,7 @@ function diffSub(figures, previousFigures, code) {
 export function renderSummary({ company, link }) {
   const head = `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
       <h1>${pageIcon("sparkle", "sun")}1枚サマリー</h1>
       <p class="note">登録済みの数字から自動で作った、要点を1枚にまとめた表示です。印刷して、そのまま共有にも使えます。</p>

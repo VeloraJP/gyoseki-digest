@@ -114,7 +114,7 @@ export function renderAnalysis({ company, link }) {
   const selection = selectAnalysisTarget(company);
   const head = `
     <div class="page-head">
-      ${backButtonHtml()}
+      ${backButtonHtml({ topHref: link(ROUTES.HOME, { company: company.id }) })}
       <p class="crumb"><a href="${link(ROUTES.HOME, { company: company.id })}">${esc(company.name)}</a></p>
       <h1>${pageIcon("chart")}業績を見る</h1>
     </div>`;
