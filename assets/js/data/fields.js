@@ -64,6 +64,14 @@ export const FACTOR_CANDIDATE_CODES = Object.freeze([
   "PL021", "PL022", "PL024"
 ]);
 
+// 固定費・変動費の標準分類（仕様書 8、business-tool2-2の分類を基礎とする）
+// PL009はPL008の内数のため、どちらにも含めない（二重に数えない）。
+export const VARIABLE_COST_CODES = Object.freeze(["PL002", "PL015"]);
+export const FIXED_COST_CODES = Object.freeze([
+  "PL004", "PL005", "PL006", "PL008", "PL010",
+  "PL011", "PL012", "PL013", "PL014"
+]);
+
 export const BS_FIELDS = Object.freeze([
   field("BS001", "現預金"),
   field("BS002", "売掛金", { hint: "まだ入金されていない売上代金" }),

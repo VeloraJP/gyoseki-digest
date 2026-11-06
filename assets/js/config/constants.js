@@ -1,7 +1,7 @@
 export const APP_ID = "gyoseki-digest";
 export const APP_NAME = "業績ダイジェスト";
 export const SCHEMA_VERSION = "1.0";
-export const APP_VERSION = "1.0";
+export const APP_VERSION = "1.1";
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export const STORAGE_KEYS = Object.freeze({
@@ -41,10 +41,16 @@ export const REGISTRATION_STAGES = Object.freeze({
   STANDARD: "STANDARD"
 });
 
+// 目標にできる利益の種類（発展フェーズ）。コードは年次の自動計算項目とそろえる。
+// 既定は当期純利益（主表示の利益と同じ）。
+export const GOAL_PROFIT_CODES = Object.freeze(["PL025", "PL020", "PL017"]);
+export const DEFAULT_GOAL_PROFIT_CODE = "PL025";
+
 export const DATA_ERROR_CODES = Object.freeze({
   INVALID_DATA: "INVALID_DATA",
   INVALID_JSON: "INVALID_JSON",
   UNSUPPORTED_APP_ID: "UNSUPPORTED_APP_ID",
+  UNSUPPORTED_FORMAT: "UNSUPPORTED_FORMAT",
   UNSUPPORTED_SCHEMA_VERSION: "UNSUPPORTED_SCHEMA_VERSION",
   FILE_TOO_LARGE: "FILE_TOO_LARGE",
   STORAGE_READ_FAILED: "STORAGE_READ_FAILED",

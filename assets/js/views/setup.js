@@ -7,6 +7,7 @@ import {
 import { esc } from "../components/dom.js";
 import { ROUTES } from "../navigation/router.js";
 import { createCompany } from "../data/schema.js";
+import { removeCompany } from "../core/manage.js";
 
 export function renderSetup({ params, company, link }) {
   const isNew = !company;
@@ -48,12 +49,38 @@ export function renderSetup({ params, company, link }) {
         <button type="submit" class="btn btn--primary">保存する</button>
         <a class="btn" href="${isNew ? link(ROUTES.START) : link(ROUTES.HOME, { company: company.id })}">戻る</a>
       </div>
-    </form>`;
+    </form>
+    ${isNew ? "" : `
+    <div class="card danger-zone">
+      <h3 style="margin-top:0">この会社を削除する</h3>
+      <p class="note">「${esc(current.name)}」と、その年次登録（${company.annualPeriods.length}件）・月次記録（${company.monthlyRecords.length}件）・目標設定をすべて削除します。削除すると元に戻せません（JSONのバックアップがある場合だけ、読み込みで戻せます）。</p>
+      <div class="btn-row">
+        <button type="button" class="btn" id="delete-company-btn">この会社を削除する</button>
+      </div>
+      <div id="delete-company-confirm" hidden>
+        <div class="error-box">
+          本当に削除しますか。
+          <div class="btn-row" style="margin-top:0.5rem">
+            <button type="button" class="btn btn--danger" id="delete-company-confirm-btn">削除する</button>
+          </div>
+        </div>
+      </div>
+    </div>`}`;
 }
 
 export function mountSetup(el, { store, params, navigate }) {
   const form = el.querySelector("#setup-form");
   const existingId = params.company ?? null;
+
+  const deleteCompanyBtn = el.querySelector("#delete-company-btn");
+  if (deleteCompanyBtn && existingId) {
+    const confirmBox = el.querySelector("#delete-company-confirm");
+    deleteCompanyBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    el.querySelector("#delete-company-confirm-btn")?.addEventListener("click", () => {
+      store.commit((draft) => { removeCompany(draft, existingId); });
+      navigate(ROUTES.START);
+    });
+  }
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const fd = new FormData(form);

@@ -1,5 +1,7 @@
 import { getAnnualFigures, getMonthlyFigures, listFiscalKeys, buildMonthlyAggregate } from "../core/calc.js";
-import { esc, formatYearMonth, formatYen } from "../components/dom.js";
+import { computeGoalSummary } from "../core/goal.js";
+import { fieldLabel } from "../data/fields.js";
+import { esc, formatPercent, formatYearMonth, formatYen } from "../components/dom.js";
 import { ROUTES } from "../navigation/router.js";
 
 export function sortedPeriods(company) {
@@ -36,6 +38,19 @@ export function renderHome({ company, link }) {
     : `<div class="kpi-label">最新月次の当期純利益</div>
        <div class="kpi-value" style="font-size:1.5rem">未登録</div>`;
 
+  const goalSummary = computeGoalSummary(company);
+  const goalHtml = goalSummary
+    ? `<div class="card">
+         <div class="kpi-label">${esc(goalSummary.period.displayName)}の目標（${esc(fieldLabel(goalSummary.goal.profitCode))} ${formatYen(goalSummary.goal.amount)}${goalSummary.result.approximate ? ' <span class="tag">概算</span>' : ""}）</div>
+         ${goalSummary.remainingSales > 0
+           ? `<div class="kpi-value" style="font-size:1.5rem">目標まで、あと ${formatYen(goalSummary.remainingSales)} の売上</div>
+              <div class="kpi-sub">必要な売上高 ${formatYen(goalSummary.result.requiredSales)}${goalSummary.progress ? ` ／ 月次累計の売上 ${formatYen(goalSummary.progress.cumulativeSales)}` : ` ／ 現在の売上 ${formatYen(goalSummary.result.sales)}`}（達成率 ${formatPercent(goalSummary.progress && goalSummary.result.requiredSales > 0 ? goalSummary.progress.salesProgressRate : goalSummary.result.achievementRate)}）</div>`
+           : `<div class="kpi-value" style="font-size:1.5rem">目標の売上に届いています</div>
+              <div class="kpi-sub">必要な売上高 ${formatYen(goalSummary.result.requiredSales)}</div>`}
+         <div class="btn-row"><a class="btn btn--small" href="${link(ROUTES.GOAL, { company: company.id, period: goalSummary.period.id })}">目標と進捗を見る</a></div>
+       </div>`
+    : "";
+
   const periodRows = [...periods].reverse().map((p) => `
     <li>
       <span>${esc(p.displayName)}（${p.stage === "SIMPLE" ? "簡易登録" : "標準登録"}）</span>
@@ -59,8 +74,11 @@ export function renderHome({ company, link }) {
       <div class="kpi-big">${monthlySummary}</div>
     </div>
 
+    ${goalHtml}
+
     <div class="nav-grid">
       <a class="btn btn--primary" href="${link(ROUTES.ANALYSIS, { company: company.id })}">業績を見る</a>
+      <a class="btn" href="${link(ROUTES.GOAL, { company: company.id })}">目標と進捗</a>
       <a class="btn" href="${link(ROUTES.REVIEW, { company: company.id, tab: "annual" })}">月次・年度レビュー</a>
       <a class="btn" href="${link(ROUTES.ANNUAL, { company: company.id, period: "new" })}">年次を登録する</a>
       <a class="btn" href="${link(ROUTES.MONTHLY, { company: company.id })}">月次を登録する</a>

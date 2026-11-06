@@ -24,6 +24,13 @@ export function formatDiff(value) {
   return `${sign}${Math.abs(Math.round(value)).toLocaleString("ja-JP")}円`;
 }
 
+// 割合の表示（達成率・進捗率用、符号なし）。rate はパーセント値。null は「—」。
+export function formatPercent(rate) {
+  if (typeof rate !== "number" || !Number.isFinite(rate)) return "—";
+  const rounded = Math.round(rate * 10) / 10;
+  return `${rounded.toLocaleString("ja-JP")}%`;
+}
+
 // 増減率の表示。rate はパーセント値（例：20 → 20%）。null は「—」。
 export function formatRate(rate) {
   if (typeof rate !== "number" || !Number.isFinite(rate)) return "—";

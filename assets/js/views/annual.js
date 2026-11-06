@@ -13,6 +13,7 @@ import {
   fieldLabel
 } from "../data/fields.js";
 import { createAnnualPeriod, defaultPeriodDisplayName } from "../data/schema.js";
+import { removeAnnualPeriod } from "../core/manage.js";
 import { buildMonthlyAggregate, fiscalPeriodMonths, getAnnualFigures, getBSFigures, listFiscalKeys } from "../core/calc.js";
 import { validateAnnualRegistration } from "../core/validate.js";
 import { esc, formatYen, fromYen, parseAmountInput, toYen } from "../components/dom.js";
@@ -94,7 +95,23 @@ export function renderAnnual({ company, period, link }) {
         <button type="submit" class="btn btn--primary">保存する</button>
         <a class="btn" href="${link(ROUTES.HOME, { company: company.id })}">戻る</a>
       </div>
-    </form>`;
+    </form>
+    ${isNew ? "" : `
+    <div class="card danger-zone">
+      <h3 style="margin-top:0">この期の登録を削除する</h3>
+      <p class="note">「${esc(period.displayName)}」の年次登録を削除します。${period.goal ? "この期の目標設定も一緒に消えます。" : ""}削除すると元に戻せません（JSONのバックアップがある場合だけ、読み込みで戻せます）。</p>
+      <div class="btn-row">
+        <button type="button" class="btn" id="delete-period-btn">この期を削除する</button>
+      </div>
+      <div id="delete-period-confirm" hidden>
+        <div class="error-box">
+          本当に削除しますか。
+          <div class="btn-row" style="margin-top:0.5rem">
+            <button type="button" class="btn btn--danger" id="delete-period-confirm-btn">削除する</button>
+          </div>
+        </div>
+      </div>
+    </div>`}`;
 }
 
 function readAmounts(container, codes, unit) {
@@ -168,6 +185,19 @@ export function mountAnnual(el, { store, company, period, navigate }) {
     simpleSection.hidden = currentStage() !== "SIMPLE";
     standardSection.hidden = currentStage() !== "STANDARD";
     refreshCandidate();
+  }
+
+  const deletePeriodBtn = el.querySelector("#delete-period-btn");
+  if (deletePeriodBtn && period) {
+    const confirmBox = el.querySelector("#delete-period-confirm");
+    deletePeriodBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    el.querySelector("#delete-period-confirm-btn")?.addEventListener("click", () => {
+      store.commit((draft) => {
+        const target = draft.companies.find((c) => c.id === company.id);
+        if (target) removeAnnualPeriod(target, period.id);
+      });
+      navigate(ROUTES.HOME, { company: company.id });
+    });
   }
 
   form.addEventListener("input", () => { refreshAuto(); });

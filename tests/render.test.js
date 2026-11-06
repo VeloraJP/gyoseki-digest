@@ -127,3 +127,83 @@ test("データ管理画面に書き出し・読み込みがある", () => {
   assert.match(html, /JSONを書き出す/);
   assert.match(html, /復元（読み込み）/);
 });
+
+import { renderGoal } from "../assets/js/views/goal.js";
+import { renderSetup } from "../assets/js/views/setup.js";
+
+test("目標画面：当期純利益の目標で必要売上・差額・達成率と概算の注記が出る", () => {
+  const company = sampleCompany();
+  const period = company.annualPeriods[1];
+  // 当期純利益 13,600,000 → 換算後の営業利益目標 16,000,000 → 必要売上 120,000,000、差額 10,000,000
+  period.goal = { profitCode: "PL025", amount: 13_600_000 };
+  const html = renderGoal({ company, params: { period: period.id }, link });
+  assert.match(html, /必要な売上高/);
+  assert.match(html, /120,000,000円/);
+  assert.match(html, /10,000,000円/);
+  assert.match(html, /達成率/);
+  assert.match(html, /概算/);
+  assert.match(html, /法人税等がこの期と同じという前提/);
+});
+
+test("目標画面：月次がある期では進捗が出る", () => {
+  const company = sampleCompany();
+  const period = company.annualPeriods[1]; // 2025-04〜2026-03
+  period.goal = { profitCode: "PL025", amount: 10_000_000 };
+  const mv = { M001: 10_000_000, M002: 6_000_000, M003: 2_000_000, M004: 300_000, M005: 200_000, M006: 400_000, M007: 800_000 };
+  for (const ym of ["2026-04", "2026-05", "2026-06"]) {
+    company.monthlyRecords.push(createMonthlyRecord({ yearMonth: ym, values: { ...mv } }));
+  }
+  const html = renderGoal({ company, params: { period: period.id }, link });
+  assert.match(html, /月次の進捗/);
+  assert.match(html, /残り/);
+  assert.match(html, /月平均あと/);
+});
+
+test("目標画面：簡易登録の期では使えない旨が出る", () => {
+  const company = createCompany({ name: "簡易のみ", closingMonth: 3 });
+  company.annualPeriods.push(createAnnualPeriod({
+    startDate: "2025-04-01", endDate: "2026-03-31", displayName: "2026年3月期",
+    stage: "SIMPLE", values: { PL001: 90_000_000, PL025: 4_000_000 }
+  }));
+  const html = renderGoal({ company, params: {}, link });
+  assert.match(html, /簡易登録.*ため、目標の計算は使えません/);
+});
+
+test("目標画面：年次登録がなければ登録への案内が出る", () => {
+  const company = createCompany({ name: "空の会社", closingMonth: 3 });
+  const html = renderGoal({ company, params: {}, link });
+  assert.match(html, /年次登録がまだありません/);
+});
+
+test("ホーム：目標を設定した会社には「目標まであといくら」の要約が出る", () => {
+  const company = sampleCompany();
+  company.annualPeriods[1].goal = { profitCode: "PL017", amount: 16_000_000 };
+  const html = renderHome({ company, link });
+  // サンプルには翌期（2027年3月期）の月次が2件（売上10,000,000×2）あるため、残りは月次累計ベース
+  assert.match(html, /目標まで、あと 100,000,000円 の売上/);
+  assert.match(html, /目標と進捗を見る/);
+});
+
+test("ホーム：目標がなければ目標の要約は出ない", () => {
+  const company = sampleCompany();
+  const html = renderHome({ company, link });
+  assert.ok(!html.includes("目標まで、あと"));
+});
+
+test("削除導線：年次・月次・会社の各画面に削除ボタンがある", () => {
+  const company = sampleCompany();
+  const period = company.annualPeriods[1];
+  const annualHtml = renderAnnual({ company, period, link });
+  assert.match(annualHtml, /この期を削除する/);
+  const record = company.monthlyRecords.find((r) => r.yearMonth === "2026-10");
+  const monthlyHtml = renderMonthly({ company, yearMonth: "2026-10", record, link });
+  assert.match(monthlyHtml, /この月を削除する/);
+  const setupHtml = renderSetup({ params: { company: company.id }, company, link });
+  assert.match(setupHtml, /この会社を削除する/);
+});
+
+test("データ管理画面にbusiness-tool2-2からの移行がある", () => {
+  const html = renderData({ link });
+  assert.match(html, /ほかのツールからの移行（business-tool2-2）/);
+  assert.match(html, /新しい会社として追加/);
+});

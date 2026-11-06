@@ -7,6 +7,7 @@ import {
   fieldLabel
 } from "../data/fields.js";
 import { createMonthlyRecord } from "../data/schema.js";
+import { removeMonthlyRecord } from "../core/manage.js";
 import { findMonthlyRecord, fiscalPeriodKey, getMonthlyFigures } from "../core/calc.js";
 import { validateMonthlyRegistration } from "../core/validate.js";
 import { esc, formatYen, formatYearMonth, fromYen, parseAmountInput, toYen } from "../components/dom.js";
@@ -43,7 +44,23 @@ export function renderMonthly({ company, yearMonth, record, link }) {
         <button type="submit" class="btn btn--primary">保存する</button>
         <a class="btn" href="${link(ROUTES.HOME, { company: company.id })}">戻る</a>
       </div>
-    </form>`;
+    </form>
+    ${record ? `
+    <div class="card danger-zone">
+      <h3 style="margin-top:0">この月の記録を削除する</h3>
+      <p class="note">${formatYearMonth(record.yearMonth)}の月次記録を削除します。削除すると元に戻せません（JSONのバックアップがある場合だけ、読み込みで戻せます）。</p>
+      <div class="btn-row">
+        <button type="button" class="btn" id="delete-monthly-btn">この月を削除する</button>
+      </div>
+      <div id="delete-monthly-confirm" hidden>
+        <div class="error-box">
+          本当に削除しますか。
+          <div class="btn-row" style="margin-top:0.5rem">
+            <button type="button" class="btn btn--danger" id="delete-monthly-confirm-btn">削除する</button>
+          </div>
+        </div>
+      </div>
+    </div>` : ""}`;
 }
 
 export function mountMonthly(el, { store, company, navigate }) {
@@ -82,6 +99,23 @@ export function mountMonthly(el, { store, company, navigate }) {
       navigate(ROUTES.MONTHLY, { company: company.id, ym });
     }
   });
+
+  const deleteMonthlyBtn = el.querySelector("#delete-monthly-btn");
+  if (deleteMonthlyBtn) {
+    const confirmBox = el.querySelector("#delete-monthly-confirm");
+    deleteMonthlyBtn.addEventListener("click", () => { confirmBox.hidden = false; });
+    el.querySelector("#delete-monthly-confirm-btn")?.addEventListener("click", () => {
+      const ym = ymInput.value;
+      const snapshot = store.getCompany(company.id);
+      const existing = ym ? findMonthlyRecord(snapshot, ym) : null;
+      if (!existing) return;
+      store.commit((draft) => {
+        const target = draft.companies.find((c) => c.id === company.id);
+        if (target) removeMonthlyRecord(target, existing.id);
+      });
+      navigate(ROUTES.HOME, { company: company.id });
+    });
+  }
 
   form.addEventListener("input", refreshAuto);
   refreshAuto();

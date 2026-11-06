@@ -113,6 +113,7 @@ export function renderAnalysis({ company, link }) {
     ${comparisonHtml}
     ${factorsHtml}
     <div class="btn-row">
+      <a class="btn" href="${link(ROUTES.GOAL, { company: company.id })}">目標と進捗へ</a>
       <a class="btn" href="${link(ROUTES.REVIEW, { company: company.id, tab: "annual" })}">月次・年度レビューへ</a>
       <a class="btn" href="${link(ROUTES.HOME, { company: company.id })}">ホームへ戻る</a>
     </div>`;

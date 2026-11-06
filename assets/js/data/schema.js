@@ -40,9 +40,12 @@ export function createAnnualPeriod({
   displayName = "",
   stage = REGISTRATION_STAGES.STANDARD,
   values = {},
-  bsValues = null
+  bsValues = null,
+  goal = null
 } = {}) {
-  return { id, startDate, endDate, displayName, stage, values, bsValues };
+  // goal は発展フェーズの目標設定。{ profitCode, amount } または null。
+  // 初版の保存データには無い項目のため、検証では未設定（undefined）も許す。
+  return { id, startDate, endDate, displayName, stage, values, bsValues, goal };
 }
 
 export function createMonthlyRecord({

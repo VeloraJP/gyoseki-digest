@@ -17,6 +17,10 @@
   cursor: pointer; text-decoration: none; min-height: 44px;
 }
 .btn:hover { background: var(--color-primary-soft); }
+.btn--danger { background: #a93226; color: #fff; border-color: #a93226; }
+.btn--danger:hover { background: #922b21; color: #fff; }
+.danger-zone { border-color: #e3b3ae; }
+.danger-zone h2, .danger-zone h3 { color: #7c2d24; }
 .btn--primary { background: var(--color-primary); color: #fff; }
 .btn--primary:hover { background: #12503e; color: #fff; }
 .btn--block { width: 100%; }

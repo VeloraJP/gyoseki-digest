@@ -1,6 +1,7 @@
 import {
   AMOUNT_INPUT_UNITS,
   APP_ID,
+  GOAL_PROFIT_CODES,
   REGISTRATION_STAGES,
   SCHEMA_VERSION,
   TAX_ACCOUNTING_BASIS
@@ -70,6 +71,18 @@ export function validatePersistentData(data) {
         if (!isValidAmountMap(period.values)) errors.push(`${p}.valuesが不正です。`);
         if (period.bsValues !== null && period.bsValues !== undefined && !isValidAmountMap(period.bsValues)) {
           errors.push(`${p}.bsValuesが不正です。`);
+        }
+        // 目標設定（発展フェーズ）。初版データには無いため、未設定は許す。
+        if (period.goal !== undefined && period.goal !== null) {
+          const g = period.goal;
+          if (
+            !isPlainObject(g) ||
+            !GOAL_PROFIT_CODES.includes(g.profitCode) ||
+            typeof g.amount !== "number" ||
+            !Number.isFinite(g.amount)
+          ) {
+            errors.push(`${p}.goalが不正です。`);
+          }
         }
       });
     }
