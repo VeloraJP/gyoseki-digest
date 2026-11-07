@@ -1,7 +1,7 @@
 export const APP_ID = "gyoseki-digest";
 export const APP_NAME = "業績ダイジェスト";
 export const SCHEMA_VERSION = "1.0";
-export const APP_VERSION = "1.6.0";
+export const APP_VERSION = "1.6.1";
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export const STORAGE_KEYS = Object.freeze({

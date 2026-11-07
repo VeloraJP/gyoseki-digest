@@ -260,3 +260,7 @@ details.optional-section summary { font-weight: 700; cursor: pointer; padding: 0
 .chart-zero { stroke: var(--color-line-strong); stroke-width: 1; }
 .chart-value { font-size: 9px; font-weight: 700; fill: var(--color-ink); text-anchor: middle; }
 .chart-label { font-size: 9px; fill: var(--color-muted); text-anchor: middle; }
+
+/* 印刷専用の見出し（1枚サマリーの題字と各ページの見出し帯）。
+   画面では出さない。印刷時の表示と体裁は print.css で指定する。 */
+.print-only { display: none; }

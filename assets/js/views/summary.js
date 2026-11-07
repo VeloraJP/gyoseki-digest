@@ -29,6 +29,13 @@ function progressBarHtml(rate, done = false) {
   </div>`;
 }
 
+// 作成日時の表示（印刷用見出しに使う）。曜日はロケールの表示に任せる。
+function formatCreatedAt(date) {
+  const day = date.toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+  const time = date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  return `${day} ${time}`;
+}
+
 function diffSub(figures, previousFigures, code) {
   if (!previousFigures) return "";
   const d = diffPair(figures[code], previousFigures[code]);
@@ -62,6 +69,21 @@ export function renderSummary({ company, link }) {
         </div>
       </div>`;
   }
+
+  // 印刷用見出し（画面では出さない。print.css で表示する）。
+  // 先頭の題字に会社名・対象期間・作成日時を置き、各ページ上部にも同じ見出しを繰り返す。
+  const createdAt = formatCreatedAt(new Date());
+  const periodLabel = selection.target?.label ?? goalSummary?.period?.displayName ?? "";
+  const printBlocks = `
+    <div class="print-head print-only" aria-hidden="true">
+      <span class="print-head__brand">業績ダイジェスト｜1枚サマリー</span>
+      <span class="print-head__meta">${esc(company.name)}${periodLabel ? `／${esc(periodLabel)}` : ""}／作成日時：${createdAt}</span>
+    </div>
+    <div class="print-title print-only">
+      <p class="print-title__name">${esc(company.name)}</p>
+      <p class="print-title__meta">1枚サマリー${periodLabel ? `（${esc(periodLabel)}）` : ""}</p>
+      <p class="print-title__date">作成日時：${createdAt}</p>
+    </div>`;
 
   const sections = [];
 
@@ -215,7 +237,7 @@ export function renderSummary({ company, link }) {
     </div>`);
   }
 
-  return head + sections.join("\n") + `
+  return printBlocks + head + sections.join("\n") + `
     <p class="note">このサマリーは、登録済みの数字から自動で作っています。数字の登録・修正は、それぞれの登録画面から行ってください。</p>
     <div class="btn-row summary-actions">
       <a class="btn" href="${link(ROUTES.ANALYSIS, { company: company.id })}">業績を見るへ</a>
