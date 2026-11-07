@@ -53,7 +53,8 @@ export function renderSummary({ company, link }) {
     </div>
     <div class="btn-row summary-actions">
       <button type="button" class="btn btn--primary" id="summary-print">印刷する</button>
-    </div>`;
+    </div>
+    <p class="note summary-print-note" id="summary-print-note" hidden>印刷プレビューが出ない場合は、このページをSafariで開き直してから、もう一度「印刷する」を押してください。</p>`;
 
   const selection = selectAnalysisTarget(company);
   const goalSummary = computeGoalSummary(company);
@@ -246,7 +247,30 @@ export function renderSummary({ company, link }) {
 }
 
 export function mountSummary(el) {
-  el.querySelector("#summary-print")?.addEventListener("click", () => {
-    window.print();
+  const button = el.querySelector("#summary-print");
+  if (!button) return;
+  const note = el.querySelector("#summary-print-note");
+  button.addEventListener("click", () => {
+    // 通常のSafariタブでは window.print() で印刷プレビューが開き、
+    // その直前に beforeprint が発火する。アプリ内ブラウザ等では
+    // window.print() が無反応で beforeprint も来ないため、
+    // 印刷が始まらなかった場合だけ Safari で開き直す案内を出す。
+    let engaged = false;
+    const onBeforePrint = () => {
+      engaged = true;
+      if (note) note.hidden = true;
+    };
+    window.addEventListener("beforeprint", onBeforePrint, { once: true });
+    try {
+      window.print();
+    } catch {
+      window.removeEventListener("beforeprint", onBeforePrint);
+      if (note) note.hidden = false;
+      return;
+    }
+    window.setTimeout(() => {
+      window.removeEventListener("beforeprint", onBeforePrint);
+      if (!engaged && note) note.hidden = false;
+    }, 800);
   });
 }

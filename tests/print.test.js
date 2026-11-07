@@ -76,5 +76,83 @@ test("印刷：増減の色が白地でもコントラスト4.5:1以上で判別
 test("印刷：版数とService Workerのキャッシュ名が更新されている", () => {
   const appVersion = constantsJs.match(/APP_VERSION = "([^"]+)"/)[1];
   assert.equal(pkg.version, appVersion);
-  assert.match(swJs, /const CACHE_NAME = 'gyoseki-digest-v11'/);
+  assert.match(swJs, /const CACHE_NAME = 'gyoseki-digest-v12'/);
+});
+
+test("印刷：プレビューが出ない環境向けの案内がボタン近くに用意されている", () => {
+  assert.match(summaryJs, /id="summary-print-note" hidden/);
+  assert.match(summaryJs, /印刷プレビューが出ない場合は、このページをSafariで開き直してから/);
+  // 案内自体は印刷物には出さない
+  assert.match(printCss, /\.summary-print-note\s*\{\s*display:\s*none !important/);
+});
+
+test("印刷：ボタン処理は beforeprint で印刷開始を判定する", () => {
+  assert.match(summaryJs, /addEventListener\("beforeprint"/);
+  assert.match(summaryJs, /window\.print\(\)/);
+});
+
+// mountSummary の動作テスト用の疑似DOM。
+// window はテストごとに差し替え、クリック→印刷開始の有無を再現する。
+function setupPrintButton({ printImpl } = {}) {
+  const listeners = new Map();
+  const timers = [];
+  let printCalls = 0;
+  globalThis.window = {
+    print() {
+      printCalls++;
+      if (printImpl) printImpl();
+    },
+    addEventListener(type, fn) { listeners.set(type, fn); },
+    removeEventListener(type) { listeners.delete(type); },
+    setTimeout(fn) { timers.push(fn); return timers.length; }
+  };
+  const note = { hidden: true };
+  let clickHandler = null;
+  const button = { addEventListener(type, fn) { if (type === "click") clickHandler = fn; } };
+  const el = {
+    querySelector(sel) {
+      if (sel === "#summary-print") return button;
+      if (sel === "#summary-print-note") return note;
+      return null;
+    }
+  };
+  return {
+    note,
+    listeners,
+    get printCalls() { return printCalls; },
+    mount(mountSummary) { mountSummary(el); },
+    click() { clickHandler(); },
+    flushTimers() { while (timers.length) timers.shift()(); }
+  };
+}
+
+test("印刷ボタン：クリックで window.print() が呼ばれ、印刷が始まれば案内は出ない", async () => {
+  const { mountSummary } = await import("../assets/js/views/summary.js");
+  const env = setupPrintButton();
+  env.mount(mountSummary);
+  env.click();
+  assert.equal(env.printCalls, 1);
+  // 印刷プレビューが開く前に発火する beforeprint を模擬
+  env.listeners.get("beforeprint")?.();
+  env.flushTimers();
+  assert.equal(env.note.hidden, true);
+});
+
+test("印刷ボタン：印刷が始まらない環境（アプリ内ブラウザ等）では案内が出る", async () => {
+  const { mountSummary } = await import("../assets/js/views/summary.js");
+  const env = setupPrintButton();
+  env.mount(mountSummary);
+  env.click();
+  assert.equal(env.printCalls, 1);
+  // beforeprint が来ないまま時間切れになるケースを模擬
+  env.flushTimers();
+  assert.equal(env.note.hidden, false);
+});
+
+test("印刷ボタン：window.print() が例外を投げる環境でも案内が出る", async () => {
+  const { mountSummary } = await import("../assets/js/views/summary.js");
+  const env = setupPrintButton({ printImpl() { throw new Error("not supported"); } });
+  env.mount(mountSummary);
+  env.click();
+  assert.equal(env.note.hidden, false);
 });
