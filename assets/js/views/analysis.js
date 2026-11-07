@@ -1,5 +1,6 @@
 import { analysisComparison, selectAnalysisTarget } from "../core/analysis.js";
 import { computeCashGap, selectCashGapPair } from "../core/cashflow.js";
+import { computeRepaymentOutlook } from "../core/repayment.js";
 import { buildFactorList, diffPair } from "../core/compare.js";
 import { fieldHint, fieldLabel } from "../data/fields.js";
 import { backButtonHtml, diffClass, esc, formatDiff, formatRate, formatYen } from "../components/dom.js";
@@ -110,6 +111,61 @@ export function renderCashGap(company) {
     </div>`;
 }
 
+function repaymentReasonMessage(reason) {
+  switch (reason) {
+    case "NO_BS":
+      return "貸借対照表（B/S）の登録がないため、表示できません。年次登録の画面でB/Sを登録すると表示されます。";
+    case "MISSING_ITEMS":
+      return "表示に必要な項目の登録が足りないため、表示できません。";
+    case "NO_DEPRECIATION":
+      return "減価償却費の登録がないため、表示できません。標準登録（内訳まで登録）で減価償却費を登録すると表示されます。";
+    case "NO_REPAYMENT":
+      return "年間返済額が未登録のため、表示できません。";
+    case "ZERO_REPAYMENT":
+      return "年間返済額が0のため、計算できません。";
+    case "NEGATIVE_BASE":
+      return "返済のもとになるお金がマイナスのため、倍率は表示しません。";
+    case "NO_DEBT":
+      return "借入金がないため、この目安は表示しません。";
+    default:
+      return "表示できません。";
+  }
+}
+
+// 倍率の表示（小数第2位まで、末尾の0は省く）
+function formatMultiple(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "―";
+  const rounded = Math.round(value * 100) / 100;
+  return `${rounded.toLocaleString("ja-JP")}倍`;
+}
+
+// 借入返済の見通し（仕様書 6.7）。対象期の実績から計算した目安であり、予測ではない。
+// 対象が年次登録の場合だけ枠を出し、出せない項目は「―」と理由を示す（枠ごと消さない）。
+export function renderRepaymentOutlook(company, period, link) {
+  const head = `<h2>借入返済の見通し</h2>`;
+  const r = computeRepaymentOutlook(period);
+  if (!r) return "";
+  const item = (label, note, valueHtml, reason, extra = "") => `
+    <div class="kpi-item">
+      <div class="kpi-label">${esc(label)}<span class="note">（${esc(note)}）</span></div>
+      <div class="kpi-value">${valueHtml}</div>
+      ${reason ? `<div class="kpi-sub">${esc(repaymentReasonMessage(reason))}</div>` : ""}
+      ${extra}
+    </div>`;
+  const repaymentExtra = r.annualRepayment === null
+    ? `<div style="margin-top:0.4rem"><a class="btn btn--small" href="${link(ROUTES.ANNUAL, { company: company.id, period: period.id })}">年間返済額を登録する</a></div>`
+    : "";
+  return head + `
+    <div class="card">
+      <p class="note" style="margin-top:0">「今の実績で、借入の返済にどれだけ余裕があるか」の目安です。${esc(period.displayName)}の決算の実績から計算しており、将来の返済を予測するものではありません。</p>
+      ${item("借入金の残高", "銀行などから借りているお金の残り", formatYen(r.debtBalance), r.debtReason)}
+      <div style="margin-top:0.8rem">${item("年間返済額", "1年間で返す金額（元金と利息の合計）", formatYen(r.annualRepayment), r.annualRepayment === null ? "NO_REPAYMENT" : null, repaymentExtra)}</div>
+      <div style="margin-top:0.8rem">${item("返済のもとになるお金", "利益に、実際にはお金が出ていない費用（減価償却費）を足し戻した金額", formatYen(r.repaymentBase), r.baseReason)}</div>
+      <div style="margin-top:0.8rem">${item("返済したあとの残りの目安", "返済にあてたあと、その期のお金がどれだけ残るかの目安", formatYen(r.remaining), r.remainingReason)}</div>
+      <div style="margin-top:0.8rem">${item("返済額の何倍あるか", "返すお金に対して、もとになるお金が何倍あるか", formatMultiple(r.multiple), r.multipleReason)}</div>
+    </div>`;
+}
+
 export function renderAnalysis({ company, link }) {
   const selection = selectAnalysisTarget(company);
   const head = `
@@ -205,6 +261,7 @@ export function renderAnalysis({ company, link }) {
   }
 
   const cashGapHtml = target.kind === "annual" ? renderCashGap(company) : "";
+  const repaymentHtml = target.kind === "annual" ? renderRepaymentOutlook(company, target.period, link) : "";
 
   return head + `
     <p class="note">対象：${esc(target.label)}${target.kind === "monthlyAggregate" ? ' <span class="tag">月次集計</span>（年次登録ではなく、月次12か月分の合計です）' : ""}</p>
@@ -224,6 +281,7 @@ export function renderAnalysis({ company, link }) {
     ${comparisonHtml}
     ${factorsHtml}
     ${cashGapHtml}
+    ${repaymentHtml}
     <div class="btn-row">
       <a class="btn" href="${link(ROUTES.SUMMARY, { company: company.id })}">1枚サマリーへ</a>
       <a class="btn" href="${link(ROUTES.GOAL, { company: company.id })}">目標と進捗へ</a>

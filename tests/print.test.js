@@ -76,7 +76,7 @@ test("印刷：増減の色が白地でもコントラスト4.5:1以上で判別
 test("印刷：版数とService Workerのキャッシュ名が更新されている", () => {
   const appVersion = constantsJs.match(/APP_VERSION = "([^"]+)"/)[1];
   assert.equal(pkg.version, appVersion);
-  assert.match(swJs, /const CACHE_NAME = 'gyoseki-digest-v12'/);
+  assert.match(swJs, /const CACHE_NAME = 'gyoseki-digest-v13'/);
 });
 
 test("印刷：プレビューが出ない環境向けの案内がボタン近くに用意されている", () => {

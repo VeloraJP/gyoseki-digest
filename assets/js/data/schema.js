@@ -41,11 +41,14 @@ export function createAnnualPeriod({
   stage = REGISTRATION_STAGES.STANDARD,
   values = {},
   bsValues = null,
-  goal = null
+  goal = null,
+  annualRepayment = null
 } = {}) {
   // goal は発展フェーズの目標設定。{ profitCode, amount } または null。
   // 初版の保存データには無い項目のため、検証では未設定（undefined）も許す。
-  return { id, startDate, endDate, displayName, stage, values, bsValues, goal };
+  // annualRepayment は借入返済の見通しフェーズの年間返済額（円）。任意項目で、
+  // 未登録は null とする。旧データには無いため、検証では未設定（undefined）も許す。
+  return { id, startDate, endDate, displayName, stage, values, bsValues, goal, annualRepayment };
 }
 
 export function createMonthlyRecord({

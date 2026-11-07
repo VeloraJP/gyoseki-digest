@@ -72,6 +72,16 @@ export function validatePersistentData(data) {
         if (period.bsValues !== null && period.bsValues !== undefined && !isValidAmountMap(period.bsValues)) {
           errors.push(`${p}.bsValuesが不正です。`);
         }
+        // 年間返済額（借入返済の見通しフェーズ）。旧データには無いため、未設定は許す。
+        if (period.annualRepayment !== undefined && period.annualRepayment !== null) {
+          if (
+            typeof period.annualRepayment !== "number" ||
+            !Number.isFinite(period.annualRepayment) ||
+            period.annualRepayment < 0
+          ) {
+            errors.push(`${p}.annualRepaymentが不正です。`);
+          }
+        }
         // 目標設定（発展フェーズ）。初版データには無いため、未設定は許す。
         if (period.goal !== undefined && period.goal !== null) {
           const g = period.goal;
@@ -144,6 +154,15 @@ export function validateAnnualRegistration(company, candidate, { excludePeriodId
       if (typeof v === "number" && v < 0) {
         errors.push({ field: code, message: `${fieldLabel(code)}はマイナスでは入力できません。` });
       }
+    }
+  }
+  // 年間返済額（任意項目）。未登録は許すが、マイナスは受け付けない。
+  const repayment = candidate.annualRepayment;
+  if (repayment !== null && repayment !== undefined) {
+    if (typeof repayment !== "number" || !Number.isFinite(repayment)) {
+      errors.push({ field: "annualRepayment", message: "年間返済額は金額で入力してください。" });
+    } else if (repayment < 0) {
+      errors.push({ field: "annualRepayment", message: "年間返済額はマイナスでは入力できません。" });
     }
   }
   return errors;

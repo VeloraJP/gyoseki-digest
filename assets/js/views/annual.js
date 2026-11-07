@@ -92,6 +92,16 @@ export function renderAnnual({ company, period, link }) {
         <div class="auto-calc-box" id="bs-auto"></div>
       </details>
 
+      <details class="optional-section">
+        <summary>借入の年間返済額を登録する（任意）</summary>
+        <p class="note">その期の1年間に返す元金と利息の合計です。金融機関の返済予定表や、通帳の返済実績の金額を入れてください。登録すると、自動業績分析に「借入返済の見通し」が表示されます。登録しなくても、年次登録は保存できます。金額の単位は「${unitLabel}」です。</p>
+        <div class="field" data-code="annualRepayment">
+          <label for="in-repayment">年間返済額<span class="hint">借入が複数ある場合は、すべての借入の合計額</span></label>
+          <input type="number" inputmode="decimal" id="in-repayment"
+                 value="${esc(fromYen(period?.annualRepayment ?? null, unit))}">
+        </div>
+      </details>
+
       <div id="annual-errors"></div>
       <div class="btn-row">
         <button type="submit" class="btn btn--primary">保存する</button>
@@ -225,6 +235,9 @@ export function mountAnnual(el, { store, company, period, navigate }) {
     const bsRead = readAmounts(form, bsCodes, unit);
     const bsValues = Object.values(bsRead).every((v) => v === null) ? null : bsRead;
 
+    const repaymentParsed = parseAmountInput(el.querySelector("#in-repayment")?.value ?? "");
+    const annualRepayment = repaymentParsed === null ? null : toYen(repaymentParsed, unit);
+
     const candidate = createAnnualPeriod({
       id: period?.id ?? undefined,
       startDate: startInput.value,
@@ -233,6 +246,7 @@ export function mountAnnual(el, { store, company, period, navigate }) {
       stage,
       values,
       bsValues,
+      annualRepayment,
       // 編集保存で期を作り直すため、設定済みの目標は引き継ぐ（引き継がないと目標が消える）。
       goal: period?.goal ?? null
     });
