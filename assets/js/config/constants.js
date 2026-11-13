@@ -1,0 +1,59 @@
+export const APP_ID = "gyoseki-digest";
+export const APP_NAME = "業績ダイジェスト";
+export const SCHEMA_VERSION = "1.0";
+export const APP_VERSION = "1.7.1";
+export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
+export const STORAGE_KEYS = Object.freeze({
+  PRIMARY: "gyosekiDigest.ver1"
+});
+
+export const TAX_ACCOUNTING_BASIS = Object.freeze({
+  INCLUDED: "TAX_INCLUDED",
+  EXCLUDED: "TAX_EXCLUDED"
+});
+
+export const TAX_ACCOUNTING_BASIS_LABELS = Object.freeze({
+  [TAX_ACCOUNTING_BASIS.INCLUDED]: "税込",
+  [TAX_ACCOUNTING_BASIS.EXCLUDED]: "税抜"
+});
+
+export const AMOUNT_INPUT_UNITS = Object.freeze({
+  YEN: "YEN",
+  THOUSAND_YEN: "THOUSAND_YEN",
+  TEN_THOUSAND_YEN: "TEN_THOUSAND_YEN"
+});
+
+export const AMOUNT_INPUT_UNIT_LABELS = Object.freeze({
+  [AMOUNT_INPUT_UNITS.YEN]: "円",
+  [AMOUNT_INPUT_UNITS.THOUSAND_YEN]: "千円",
+  [AMOUNT_INPUT_UNITS.TEN_THOUSAND_YEN]: "万円"
+});
+
+export const AMOUNT_INPUT_UNIT_FACTORS = Object.freeze({
+  [AMOUNT_INPUT_UNITS.YEN]: 1,
+  [AMOUNT_INPUT_UNITS.THOUSAND_YEN]: 1_000,
+  [AMOUNT_INPUT_UNITS.TEN_THOUSAND_YEN]: 10_000
+});
+
+export const REGISTRATION_STAGES = Object.freeze({
+  SIMPLE: "SIMPLE",
+  STANDARD: "STANDARD"
+});
+
+// 目標にできる利益の種類（発展フェーズ）。コードは年次の自動計算項目とそろえる。
+// 既定は当期純利益（主表示の利益と同じ）。
+export const GOAL_PROFIT_CODES = Object.freeze(["PL025", "PL020", "PL017"]);
+export const DEFAULT_GOAL_PROFIT_CODE = "PL025";
+
+export const DATA_ERROR_CODES = Object.freeze({
+  INVALID_DATA: "INVALID_DATA",
+  INVALID_JSON: "INVALID_JSON",
+  UNSUPPORTED_APP_ID: "UNSUPPORTED_APP_ID",
+  UNSUPPORTED_FORMAT: "UNSUPPORTED_FORMAT",
+  UNSUPPORTED_SCHEMA_VERSION: "UNSUPPORTED_SCHEMA_VERSION",
+  FILE_TOO_LARGE: "FILE_TOO_LARGE",
+  STORAGE_READ_FAILED: "STORAGE_READ_FAILED",
+  STORAGE_WRITE_FAILED: "STORAGE_WRITE_FAILED",
+  STORAGE_QUOTA_EXCEEDED: "STORAGE_QUOTA_EXCEEDED"
+});

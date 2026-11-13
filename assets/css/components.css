@@ -1,0 +1,266 @@
+/* アイコン（インラインSVG） */
+.icon { width: 1.3em; height: 1.3em; flex: none; vertical-align: -0.22em; }
+.icon--lg { width: 1.8rem; height: 1.8rem; }
+
+.card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-card);
+  padding: 1.1rem 1.2rem;
+  margin: 0 0 1.1rem;
+}
+
+/* 主役カード：深いグリーンのグラデーションに白い数字 */
+.card--accent {
+  background: var(--gradient-hero);
+  border-color: transparent;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgb(11 110 87 / 30%);
+}
+.card--accent::before, .card--accent::after {
+  content: ""; position: absolute; border-radius: 50%; pointer-events: none;
+}
+.card--accent::before {
+  width: 15rem; height: 15rem; right: -5.5rem; top: -7rem;
+  background: radial-gradient(circle, rgb(255 176 32 / 35%), transparent 68%);
+}
+.card--accent::after {
+  width: 11rem; height: 11rem; left: -4rem; bottom: -6rem;
+  background: radial-gradient(circle, rgb(255 255 255 / 14%), transparent 70%);
+}
+.card--accent > * { position: relative; z-index: 1; }
+.card--accent .kpi-label { color: #fff; }
+.card--accent .kpi-label .hint, .card--accent .kpi-sub { color: rgb(255 255 255 / 90%); }
+.card--accent .note { color: rgb(255 255 255 / 90%); }
+/* .kpi-big 側の淡色指定（.kpi-big .kpi-label .hint / .kpi-big .kpi-sub）より特異度を上げ、
+   濃色カード上では補足文も白系で読める色にする */
+.card--accent .kpi-big .kpi-label .hint,
+.card--accent .kpi-big .kpi-sub { color: rgb(255 255 255 / 90%); }
+.card--accent hr { border-top-color: rgb(255 255 255 / 35%) !important; }
+.card--accent .kpi-item {
+  background: #fff; color: var(--color-ink);
+  border-color: transparent; box-shadow: 0 4px 14px rgb(6 60 47 / 18%);
+}
+/* 濃色カードの中の白い小カードでは、項目名と補足を濃い文字に戻す
+   （.card--accent .kpi-label の白指定が効くと、白地に白文字で項目名が見えなくなる） */
+.card--accent .kpi-item .kpi-label { color: var(--color-ink); }
+.card--accent .kpi-item .kpi-label .note,
+.card--accent .kpi-item .kpi-label .hint { color: var(--color-muted); }
+.card--accent .kpi-item .kpi-sub { color: var(--color-muted); }
+/* 濃色カード上での増減表記は、淡い緑・淡いコーラルで示す（通常の緑・オレンジでは沈む） */
+.card--accent .diff-up { color: #b8f5d2; }
+.card--accent .diff-down { color: #ffdfd2; }
+.card--accent .diff-flat { color: rgb(255 255 255 / 90%); }
+.card--accent .btn:not(.btn--primary) { background: rgb(255 255 255 / 94%); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+  padding: 0.6rem 1.2rem; border-radius: 999px;
+  border: 1.5px solid var(--color-primary); background: var(--color-paper);
+  color: var(--color-primary); font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; text-decoration: none; min-height: 44px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.btn:hover { background: var(--color-primary-soft); box-shadow: 0 4px 12px rgb(14 124 102 / 16%); }
+.btn:active { transform: scale(0.98); }
+.btn--danger { background: #b23c2e; color: #fff; border-color: #b23c2e; }
+.btn--danger:hover { background: #9c3327; color: #fff; }
+.danger-zone { border-color: #eec5bd; background: #fffaf7; }
+.danger-zone h2, .danger-zone h3 { color: #8c3226; }
+.danger-zone h2::before { background: linear-gradient(180deg, #e0785f, var(--color-danger)); }
+.btn--primary {
+  background: var(--gradient-primary); color: #fff; border-color: transparent;
+  box-shadow: 0 5px 14px rgb(14 124 102 / 28%);
+}
+.btn--primary:hover { background: var(--gradient-primary); color: #fff; filter: brightness(1.07); box-shadow: 0 7px 18px rgb(14 124 102 / 32%); }
+.btn--block { width: 100%; }
+.btn--small { min-height: 38px; padding: 0.35rem 0.9rem; font-size: 0.88rem; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.8rem 0; }
+
+/* 画面先頭の戻り先ボタン（前のページへ戻る／会社トップへ）。
+   2つとも横幅いっぱいに伸ばして割り付け、収まらない幅では折り返して縦に積む。 */
+.nav-back-row .btn { flex: 1 1 auto; }
+.btn--soft { background: var(--color-primary-soft); }
+.btn--soft:hover { background: #cdeadd; }
+
+/* ホームの行き先タイル */
+.nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin: 0.9rem 0 1.3rem; }
+.nav-grid .btn {
+  flex-direction: column; gap: 0.4rem; min-height: 96px; padding: 0.9rem 0.6rem;
+  border-radius: var(--radius-medium); border: 1px solid var(--color-line);
+  background: var(--color-paper); box-shadow: var(--shadow-card);
+  font-size: 0.98rem; text-align: center;
+}
+.nav-grid .btn .icon { width: 1.9rem; height: 1.9rem; }
+.nav-grid .btn:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); }
+.nav-grid .btn--primary { background: var(--gradient-hero); color: #fff; border-color: transparent; }
+
+.field { margin: 0 0 0.95rem; }
+.field label { display: block; font-weight: 700; margin-bottom: 0.3rem; }
+.field .hint { display: block; font-weight: 400; color: var(--color-muted); font-size: 0.8rem; }
+.field input[type="text"], .field input[type="number"], .field input[type="date"],
+.field input[type="month"], .field select {
+  width: 100%; padding: 0.6rem 0.75rem; font-size: 1rem;
+  border: 1.5px solid var(--color-line-strong); border-radius: var(--radius-small);
+  background: #fff; min-height: 44px; color: var(--color-ink);
+}
+.field input:focus, .field select:focus {
+  border-color: var(--color-primary-bright);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+  outline: none;
+}
+.field .unit { color: var(--color-muted); font-size: 0.82rem; margin-left: 0.3rem; }
+.field--invalid input, .field--invalid select { border-color: var(--color-danger); background: #fdf1ef; }
+
+.radio-row { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.radio-row label { font-weight: 400; display: inline-flex; align-items: center; gap: 0.35rem; }
+.radio-row input[type="radio"] { accent-color: var(--color-primary); width: 1.1rem; height: 1.1rem; }
+
+.error-box {
+  background: #fdf1ef; border: 1px solid #e5a294; color: #7c2d24;
+  border-radius: var(--radius-small); padding: 0.75rem 1rem; margin: 0 0 1rem;
+}
+.error-box ul { margin: 0.2rem 0 0.2rem 1.1rem; padding: 0; }
+
+.note { color: var(--color-muted); font-size: 0.87rem; }
+.note-box {
+  background: #fbf3dd; border: 1px solid #efdfba;
+  border-radius: var(--radius-small); padding: 0.8rem 1rem; margin: 0 0 1.1rem; font-size: 0.9rem;
+}
+
+.kpi-big { margin: 0.2rem 0; }
+.kpi-big .kpi-label { font-size: 0.98rem; font-weight: 700; }
+.kpi-big .kpi-label .hint { color: var(--color-muted); font-weight: 400; font-size: 0.8rem; margin-left: 0.4rem; }
+.kpi-big .kpi-value {
+  font-size: 2.35rem; font-weight: 800; line-height: 1.25; letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-big .kpi-sub { color: var(--color-muted); font-size: 0.9rem; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; }
+.kpi-grid .kpi-item {
+  background: #fff; border: 1px solid var(--color-line);
+  border-radius: var(--radius-small); padding: 0.7rem 0.85rem;
+}
+.kpi-item .kpi-label { font-size: 0.85rem; font-weight: 700; }
+.kpi-item .kpi-value { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.kpi-item .kpi-sub { color: var(--color-muted); font-size: 0.83rem; }
+
+/* 増減：増えたらフレッシュな緑、減ったら責めない柔らかいオレンジ */
+.diff-up { color: var(--color-up); font-weight: 700; }
+.diff-down { color: var(--color-down); font-weight: 700; }
+.diff-flat { color: var(--color-muted); }
+
+.table-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 0 1.1rem;
+  border: 1px solid var(--color-line); border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-card); background: var(--color-paper);
+}
+table.data-table { border-collapse: collapse; width: 100%; background: transparent; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+table.data-table th, table.data-table td {
+  border-bottom: 1px solid var(--color-line); padding: 0.5rem 0.65rem; text-align: right; white-space: nowrap;
+}
+table.data-table tbody tr:last-child td { border-bottom: none; }
+table.data-table th { background: #faf1da; font-weight: 700; border-bottom: 2px solid var(--color-line-strong); }
+table.data-table th:first-child, table.data-table td:first-child { text-align: left; white-space: normal; min-width: 9rem; }
+table.data-table td .row-hint { display: block; color: var(--color-muted); font-size: 0.75rem; }
+table.data-table tr.auto-row td { background: #eef8f3; font-weight: 700; }
+
+.tabs { display: flex; gap: 0.45rem; margin: 0 0 1.1rem; }
+.tabs a {
+  padding: 0.55rem 1.15rem; border-radius: 999px; border: 1.5px solid var(--color-line-strong);
+  background: var(--color-paper); text-decoration: none; color: var(--color-ink); font-weight: 700;
+}
+.tabs a[aria-selected="true"] {
+  background: var(--gradient-primary); color: #fff; border-color: transparent;
+  box-shadow: 0 4px 12px rgb(14 124 102 / 25%);
+}
+
+.list-rows { list-style: none; margin: 0; padding: 0; }
+.list-rows li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+  padding: 0.6rem 0; border-bottom: 1px dashed var(--color-line);
+}
+.list-rows li:last-child { border-bottom: none; }
+
+.company-list { display: grid; gap: 0.85rem; }
+.company-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.company-card .company-name { font-size: 1.12rem; font-weight: 800; }
+.company-card .company-meta { color: var(--color-muted); font-size: 0.85rem; }
+.company-avatar {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 3.1rem; height: 3.1rem; border-radius: 16px;
+  background: var(--color-primary-soft); color: var(--color-primary);
+}
+.company-avatar .icon { width: 1.7rem; height: 1.7rem; }
+.company-card .company-main { display: flex; align-items: center; gap: 0.85rem; min-width: 0; }
+
+details.optional-section { margin: 1rem 0; }
+details.optional-section summary { font-weight: 700; cursor: pointer; padding: 0.4rem 0; color: var(--color-primary-dark); }
+
+.auto-calc-box {
+  background: #eef8f3; border: 1.5px dashed #a8d5c2; border-radius: var(--radius-small);
+  padding: 0.75rem 1rem; margin: 0.5rem 0 1rem; font-variant-numeric: tabular-nums;
+}
+.auto-calc-box .row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.2rem 0; }
+.auto-calc-box .row .name { font-weight: 700; }
+.auto-calc-box .row .name .hint { color: var(--color-muted); font-weight: 400; font-size: 0.78rem; margin-left: 0.4rem; }
+
+.tag {
+  display: inline-block; padding: 0.08rem 0.6rem; border-radius: 999px;
+  background: var(--color-accent); color: #5c4300; font-size: 0.75rem; font-weight: 800; vertical-align: middle;
+}
+
+/* 目標の進捗バー：ゴールの旗に向かって伸びる */
+.progress {
+  position: relative; height: 16px; border-radius: 999px;
+  background: #f0e6cb; margin: 0.9rem 1.9rem 0.4rem 0;
+}
+.progress__bar {
+  height: 100%; border-radius: 999px; min-width: 0;
+  background: var(--gradient-progress);
+  transition: width 0.5s ease;
+}
+.progress__cap {
+  position: absolute; right: -1.95rem; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; border-radius: 50%;
+  background: #fff; border: 2px solid var(--color-accent);
+  color: var(--color-coral); box-shadow: 0 3px 8px rgb(120 84 20 / 20%);
+}
+.progress__cap .icon { width: 1.05rem; height: 1.05rem; }
+.progress--done .progress__cap { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+.progress--light { background: rgb(255 255 255 / 30%); }
+.progress--light .progress__bar { background: linear-gradient(90deg, #ffe066, #ffb020 60%, #ff6b4a); }
+
+/* 空の状態：寂しくない案内 */
+.empty-state { text-align: center; padding: 1.7rem 1.2rem 1.5rem; }
+.empty-state .empty-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 4.4rem; height: 4.4rem; border-radius: 50%; margin-bottom: 0.7rem;
+  background: radial-gradient(circle at 32% 28%, #fff3d1, var(--color-accent-soft));
+  color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-line);
+}
+.empty-state .empty-icon .icon { width: 2.3rem; height: 2.3rem; }
+.empty-state p { max-width: 34rem; margin-left: auto; margin-right: auto; }
+.empty-state .btn-row { justify-content: center; }
+
+/* 推移グラフ（レビュー画面） */
+.chart-block { margin: 0.4rem 0 1rem; }
+.chart-heading { font-weight: 700; font-size: 0.92rem; margin-bottom: 0.25rem; }
+.chart-scroll { overflow-x: auto; padding-bottom: 0.2rem; }
+.chart-svg { display: block; height: auto; max-width: none; }
+.chart-bar { fill: var(--color-primary); }
+.chart-bar--profit { fill: var(--color-up); }
+.chart-bar--neg { fill: var(--color-down); }
+.chart-zero { stroke: var(--color-line-strong); stroke-width: 1; }
+.chart-value { font-size: 9px; font-weight: 700; fill: var(--color-ink); text-anchor: middle; }
+.chart-label { font-size: 9px; fill: var(--color-muted); text-anchor: middle; }
+
+/* 印刷専用の見出し（1枚サマリーの題字と各ページの見出し帯）。
+   画面では出さない。印刷時の表示と体裁は print.css で指定する。 */
+.print-only { display: none; }

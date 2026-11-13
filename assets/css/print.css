@@ -1,0 +1,79 @@
+/* ===== 印刷ページ設定（1枚サマリーの印刷仕様） =====
+   用紙はA4判。余白は一般的な初期値の目安として、上20mm（各ページの
+   見出し帯ぶんを含む）・下18mm・左右15mm とする。 */
+@page {
+  size: A4 portrait;
+  margin: 20mm 15mm 18mm 15mm;
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+    font-size: 9pt;
+    color: #7d7462;
+  }
+}
+
+@media print {
+  .topbar, .app-footer, .btn, .btn-row, .nav-grid, .tabs { display: none !important; }
+  /* 画面の遷移要素（パンくず）は紙では意味を持たないため出さない */
+  .page-head .crumb { display: none !important; }
+  body { background: #fff; }
+  .main-content { max-width: none; padding: 0; }
+
+  /* ===== 印刷用見出し ===== */
+  /* 各ページ上部の見出し帯：会社名・対象期間・作成日時を全ページに繰り返す */
+  .print-head {
+    position: fixed; top: 0; left: 15mm; right: 15mm;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8mm;
+    padding-bottom: 1.8mm; border-bottom: 1px solid #ddcdaa;
+    background: #fff; font-size: 9pt; color: #57503f;
+  }
+  .print-head__brand { font-weight: 800; color: #0a5f4f; white-space: nowrap; }
+  .print-head__meta { text-align: right; }
+  /* 1ページ目先頭の題字：会社名・対象期間・作成日時 */
+  .print-title { display: block; margin: 0 0 6mm; padding-bottom: 3mm; border-bottom: 2.5px solid #0e7c66; }
+  .print-title__name { margin: 0; font-size: 20pt; font-weight: 800; line-height: 1.3; }
+  .print-title__meta { margin: 1mm 0 0; font-size: 12pt; font-weight: 700; }
+  .print-title__date { margin: 1mm 0 0; font-size: 9.5pt; color: #57503f; }
+
+  /* ===== 増減の色：印刷でも判別できる濃さにする =====
+     色だけでなく符号（+／−）でも判別できる現行の表示はそのまま維持する。 */
+  .diff-up { color: #0b7a4b; }
+  .diff-down { color: #a85410; }
+  .diff-flat { color: #7d7462; }
+
+  .card { box-shadow: none; break-inside: avoid; }
+  /* 主役カードは印刷では白地にし、枠で区切って読める形にする */
+  .card--accent { background: #fff; color: inherit; box-shadow: none; border: 1.5px solid #0a5f4f; }
+  .card--accent .kpi-label, .card--accent .kpi-sub { color: inherit; }
+  /* 画面用に白系にした補足文を、印刷では濃い文字色に戻す */
+  .card--accent .kpi-big .kpi-label .hint,
+  .card--accent .kpi-big .kpi-sub,
+  .card--accent .note { color: #57503f; }
+  /* 主役カード上でも増減の緑／オレンジが判別できる濃さを保つ */
+  .card--accent .diff-up { color: #0b7a4b; }
+  .card--accent .diff-down { color: #a85410; }
+  .card--accent .diff-flat { color: #7d7462; }
+  .card--accent::before, .card--accent::after { display: none; }
+  .card--accent .kpi-item { box-shadow: none; border: 1px solid #eee1c8; }
+  .tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* ===== 表：見出し行を各ページに繰り返し、行の途中で割らない ===== */
+  .table-wrap { box-shadow: none; overflow: visible; }
+  table.data-table thead { display: table-header-group; }
+  table.data-table tr { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  .kpi-grid, .kpi-item, .list-rows li { break-inside: avoid; }
+
+  /* 進捗バー：色を保ち、旗チップも印刷で見える形にする */
+  .progress { border: 1px solid #999; background: #fff; }
+  .progress__bar { background: #0e7c66 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .progress__cap { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* 推移グラフ：印刷でもバーの色を保ち、横スクロールを解除して全体を収める */
+  .chart-scroll { overflow: visible; }
+  .chart-svg { max-width: 100%; }
+  .chart-bar, .chart-bar--profit, .chart-bar--neg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* 1枚サマリー：操作用ボタン類は印刷しない */
+  .summary-actions { display: none !important; }
+  /* 印刷できない環境向けの案内も紙には出さない */
+  .summary-print-note { display: none !important; }
+}
